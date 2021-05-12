@@ -1,9 +1,10 @@
 #pragma once
 
-#include <iostream>
+#include "mcc/board.hh"
+#include "mcc/board2darray.hh"
 
-struct mcc {
-  mcc() { std::cout << "Hello from mcc\n"; }
-
-  void start();
+namespace mcc {
+struct MCC {
+  Board<Board2DArray> board;
 };
+}  // namespace mcc
