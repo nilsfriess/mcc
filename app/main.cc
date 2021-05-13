@@ -14,9 +14,7 @@ using namespace seasocks;
 #include "mcc/mcc.hh"
 
 struct MoveHandler : public WebSocket::Handler {
-  const mcc::MCC* engine;
-
-  MoveHandler(const mcc::MCC* engine) : engine(engine) {}
+  mcc::MCC engine;
 
   virtual void onConnect(WebSocket* connection) override {}
 
@@ -36,9 +34,9 @@ struct MoveHandler : public WebSocket::Handler {
       const mcc::Move move({stoi(parameters[1]), stoi(parameters[2])},
                            {stoi(parameters[3]), stoi(parameters[4])});
 
-      std::cout << "\n" << engine->board << "\n";
+      std::cout << "\n" << engine.board << "\n";
 
-      const auto& legalMoves = engine->board.generateLegalMoves();
+      const auto& legalMoves = engine.board.generateLegalMoves();
       for (const auto& move : legalMoves) {
         std::cout << "Move: "
                   << "[" << move.from.first << ", " << move.from.second
@@ -49,7 +47,9 @@ struct MoveHandler : public WebSocket::Handler {
       if (std::find(legalMoves.begin(), legalMoves.end(), move) !=
           legalMoves.end()) {
         std::cout << "Move was legal!\n";
+        engine.board.makeMove(move);
         connection->send("LEGAL,YES");
+        std::cout << engine.board << "\n";
       } else {
         std::cout << "Move was illegal!\n";
         connection->send("LEGAL,NO");
@@ -61,10 +61,7 @@ struct MoveHandler : public WebSocket::Handler {
 };
 
 int main() {
-  mcc::MCC engine;
-  std::cout << engine.board;
-
-  auto handler = std::make_shared<MoveHandler>(&engine);
+  auto handler = std::make_shared<MoveHandler>();
   auto logger = std::make_shared<PrintfLogger>(Logger::Level::Info);
   Server server(logger);
 

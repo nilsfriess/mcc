@@ -20,6 +20,8 @@ struct Board2DArray {
 
   std::vector<Move> generateLegalMoves() const;
 
+  void makeMove(const Move& move);
+
  private:
   std::vector<Move> generateLegalPawnMoves(size_t square) const;
 

@@ -49,6 +49,12 @@ Piece Board2DArray::getPieceAt(size_t rank, size_t file) const {
 
 Piece Board2DArray::getPieceAt(size_t square) const { return state[square]; }
 
+void Board2DArray::makeMove(const Move& move) {
+  const auto& piece = getPieceAt(move.from.first, move.from.second);
+  setPieceAt(move.from.first, move.from.second, Piece(PieceType::None));
+  setPieceAt(move.to.first, move.to.second, piece);
+}
+
 std::vector<Move> Board2DArray::generateLegalMoves() const {
   std::vector<Move> legalMoves;
   for (size_t square = 0; square < 64; ++square) {

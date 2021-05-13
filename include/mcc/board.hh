@@ -41,6 +41,8 @@ struct Board {
   std::vector<Move> generateLegalMoves() const {
     return currentPosition.generateLegalMoves();
   }
+
+  void makeMove(const Move& move) { currentPosition.makeMove(move); }
 };
 }  // namespace mcc
 
