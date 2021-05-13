@@ -22,12 +22,12 @@ class EchoHandler : public WebSocket::Handler {
 };
 
 int main() {
-  // auto logger = std::make_shared<PrintfLogger>(Logger::Level::Debug);
+  auto logger = std::make_shared<PrintfLogger>(Logger::Level::Debug);
 
-  // Server server(logger);
-  // auto handler = std::make_shared<EchoHandler>();
-  // server.addWebSocketHandler("/", handler);
-  // server.serve("/dev/null", 5050);
+  Server server(logger);
+  auto handler = std::make_shared<EchoHandler>();
+  server.addWebSocketHandler("/", handler);
+  server.serve("/dev/null", 5050);
 
   mcc::MCC engine;
   std::cout << engine.board << "\n";
