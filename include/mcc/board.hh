@@ -3,8 +3,10 @@
 #include <clocale>
 #include <iostream>
 #include <string>
+#include <vector>
 
 #include "mcc/enums.hh"
+#include "mcc/move.hh"
 #include "mcc/piece.hh"
 
 namespace mcc {
@@ -34,6 +36,10 @@ struct Board {
 
   Piece getPieceAt(size_t rank, size_t file) const {
     return currentPosition.getPieceAt(rank, file);
+  }
+
+  std::vector<Move> generateLegalMoves() const {
+    return currentPosition.generateLegalMoves();
   }
 };
 }  // namespace mcc

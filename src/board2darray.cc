@@ -47,4 +47,62 @@ Piece Board2DArray::getPieceAt(size_t rank, size_t file) const {
   return state[8 * rank + file];
 }
 
+Piece Board2DArray::getPieceAt(size_t square) const { return state[square]; }
+
+std::vector<Move> Board2DArray::generateLegalMoves() const {
+  std::vector<Move> legalMoves;
+  for (size_t square = 0; square < 64; ++square) {
+    if (state[square].type == PieceType::Pawn) {
+      auto pawnMoves = generateLegalPawnMoves(square);
+      legalMoves.insert(std::end(legalMoves), std::begin(pawnMoves),
+                        std::end(pawnMoves));
+    }
+  }
+
+  return legalMoves;
+}
+
+std::vector<Move> Board2DArray::generateLegalPawnMoves(size_t square) const {
+  std::vector<Move> legalMoves;
+  auto pawn = getPieceAt(square);
+  if (pawn.color == PieceColor::White) {
+    if (rank(square) == 6) {  // white pawn is still at initial position
+      if (const size_t advanceSquare = square - 16;
+          getPieceAt(advanceSquare).type ==
+          PieceType::None) {  // Check two square advance moves
+        const Move move({rank(square), file(square)},
+                        {rank(advanceSquare), file(advanceSquare)});
+        legalMoves.push_back(move);
+      }
+    }
+
+    if (const size_t advanceSquare = square - 8;
+        getPieceAt(advanceSquare).type ==
+        PieceType::None) {  // Check one square advance moves
+      const Move move({rank(square), file(square)},
+                      {rank(advanceSquare), file(advanceSquare)});
+      legalMoves.push_back(move);
+    }
+  } else {
+    if (rank(square) == 1) {  // black pawn is still at initial position
+      if (const size_t advanceSquare = square + 16;
+          getPieceAt(advanceSquare).type ==
+          PieceType::None) {  // Check two square advance moves
+        const Move move({rank(square), file(square)},
+                        {rank(advanceSquare), file(advanceSquare)});
+        legalMoves.push_back(move);
+      }
+    }
+
+    if (const size_t advanceSquare = square + 8;
+        getPieceAt(advanceSquare).type ==
+        PieceType::None) {  // Check one square advance moves
+      const Move move({rank(square), file(square)},
+                      {rank(advanceSquare), file(advanceSquare)});
+      legalMoves.push_back(move);
+    }
+  }
+  return legalMoves;
+}
+
 }  // namespace mcc
