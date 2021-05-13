@@ -46,7 +46,6 @@ struct Board {
 
 template <class BoardRep>
 std::ostream& operator<<(std::ostream& os, const mcc::Board<BoardRep>& board) {
-  setlocale(LC_ALL, "");
   os << "-------------------------------" << '\n';
   for (size_t rank = 0; rank < 8; ++rank) {
     for (size_t file = 0; file < 8; ++file) {

@@ -12,5 +12,11 @@ struct Move {
 
   Move() = default;
   Move(Coordinate from, Coordinate to) : from(from), to(to) {}
+
+  bool operator==(const Move& other) const {
+    return (from.first == other.from.first) &&
+           (from.second == other.from.second) && (to.first == other.to.first) &&
+           (to.second == other.to.second);
+  }
 };
 }  // namespace mcc
