@@ -39,6 +39,9 @@ Piece::Piece(char fen) {
     case 'K':
       type = PieceType::King;
       break;
+
+    default:
+      type = PieceType::None;
   }
 }
 
@@ -75,7 +78,7 @@ char Piece::toFENChar() const {
       break;
   }
 
-  if (color == PieceColor::White) fenChar = toupper(fenChar);
+  if (color == PieceColor::White) fenChar = static_cast<char>(toupper(fenChar));
 
   return fenChar;
 }

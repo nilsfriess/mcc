@@ -2,7 +2,4 @@
 
 #include <iostream>
 
-namespace mcc {
-MCC::MCC() {}
-
-}  // namespace mcc
+namespace mcc {}  // namespace mcc

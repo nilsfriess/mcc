@@ -7,7 +7,5 @@
 namespace mcc {
 struct MCC {
   Board<Board2DArray> board;
-
-  MCC();
 };
 }  // namespace mcc

@@ -8,8 +8,8 @@ struct Piece {
   PieceColor color = PieceColor::White;
 
   Piece() = default;
-  Piece(PieceType type, PieceColor color = PieceColor::White)
-      : type(type), color(color) {}
+  Piece(PieceType t_type, PieceColor t_color = PieceColor::White)
+      : type(t_type), color(t_color) {}
   Piece(char fen);
 
   char toFENChar() const;

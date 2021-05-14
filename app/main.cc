@@ -29,31 +29,28 @@ struct MoveHandler : public WebSocket::Handler {
     while (std::getline(param_stream, tmp, ',')) parameters.push_back(tmp);
 
     if (parameters[0] == "MOVE") {
-      std::cout << "Checking if move is legal... ";
-
       const mcc::Move move({stoi(parameters[1]), stoi(parameters[2])},
                            {stoi(parameters[3]), stoi(parameters[4])});
 
-      std::cout << "\n" << engine.board << "\n";
+      //
 
       const auto& legalMoves = engine.board.generateLegalMoves();
-      for (const auto& move : legalMoves) {
+      /* for (const auto& move : legalMoves) {
         std::cout << "Move: "
                   << "[" << move.from.first << ", " << move.from.second
                   << "] -> [" << move.to.first << ", " << move.to.second
                   << "]\n";
-      }
+      }*/
 
-      if (std::find(legalMoves.begin(), legalMoves.end(), move) !=
-          legalMoves.end()) {
-        std::cout << "Move was legal!\n";
+      if (legalMoves.contains(move)) {
         engine.board.makeMove(move);
         connection->send("LEGAL,YES");
-        std::cout << engine.board << "\n";
+        std::cout << "\n" << engine.board.fen << "\n";
       } else {
-        std::cout << "Move was illegal!\n";
         connection->send("LEGAL,NO");
       }
+    } else if (parameters[0] == "FEN") {
+      connection->send("FEN" + engine.board.fen);
     }
   }
 
