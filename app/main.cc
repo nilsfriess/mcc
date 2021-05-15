@@ -50,7 +50,7 @@ struct MoveHandler : public WebSocket::Handler {
         connection->send("LEGAL,NO");
       }
     } else if (parameters[0] == "FEN") {
-      connection->send("FEN" + engine.board.fen);
+      connection->send("FEN," + engine.board.fen);
     }
   }
 
