@@ -3,10 +3,12 @@
 #include <clocale>
 #include <cstdlib>
 #include <iostream>
+#include <optional>
 #include <sstream>
 #include <string>
 #include <vector>
 
+#include "mcc/coordinate.hh"
 #include "mcc/enums.hh"
 #include "mcc/move.hh"
 #include "mcc/piece.hh"
@@ -15,20 +17,18 @@ namespace mcc {
 template <class BoardRep>
 struct Board {
   BoardRep currentPosition;
+  std::string fen;
+
   PieceColor activeColor = PieceColor::White;
 
-  Move::Coordinate enPassantSquare;  // The value of this variable is only valid
-                                     // if `canTakeEnPassant == true`
+  std::optional<Coordinate> enPassantSquare = {};
 
   unsigned int fullMoves = 1;
 
-  bool canTakeEnPassant = false;
   bool whiteCanCastleKingSide = true;
   bool whiteCanCastleQueenSide = true;
   bool blackCanCastleKingSide = true;
   bool blackCanCastleQueenSide = true;
-
-  std::string fen;
 
   /* Number of halfmoves since last capture or pawn
    * advance; not implemented yet */
@@ -40,46 +40,21 @@ struct Board {
     generateFEN();
   }
 
-  Piece getPieceAt(size_t rank, size_t file) const {
-    return currentPosition.getPieceAt(rank, file);
+  Piece getPieceAt(const Coordinate& square) const {
+    return currentPosition.getPieceAt(square);
   }
 
-  BoardRep::MoveSet generateLegalMoves() const {
-    const auto squareNumber =
-        8 * enPassantSquare.first + enPassantSquare.second;
-    return currentPosition.generateLegalMoves(activeColor, squareNumber,
-                                              canTakeEnPassant);
-  }
+  /* This function tries to make the provided move.
+   * Returns false, if the move is illegal and true if the move is legal */
+  bool makeMove(const Coordinate& from, const Coordinate& to) {
+    const auto piece = currentPosition.makeMove(from, to);
 
-  void makeMove(const Move& move) {
-    const auto piece = currentPosition.makeMove(
-        move, 8 * enPassantSquare.first + enPassantSquare.second);
-
-    // Check if move allows for possible en-passant capture
-    const auto rankDistance = std::abs(static_cast<long int>(move.from.first) -
-                                       static_cast<long int>(move.to.first));
-    if (piece.type == PieceType::Pawn && rankDistance == 2) {
-      canTakeEnPassant = true;
-      enPassantSquare.second = move.from.second;
-      if (activeColor == PieceColor::White)
-        enPassantSquare.first = move.from.first - 1;
-      else
-        enPassantSquare.first = move.from.first + 1;
-    } else {
-      canTakeEnPassant = false;
+    if (!piece)  // move is illegal
+      return false;
+    else {  // move is legal
+      generateFEN();
+      return true;
     }
-
-    if (activeColor == PieceColor::Black) {
-      activeColor = PieceColor::White;
-      fullMoves++;
-    } else
-      activeColor = PieceColor::Black;
-
-    generateFEN();
-  }
-
-  std::string coordinateToAlgebraic(size_t rank, size_t file) const {
-    return std::string(1, 'a' + rank) + std::to_string(file + 1);
   }
 
  private:
@@ -90,7 +65,7 @@ struct Board {
     for (size_t rank = 0; rank < 8; ++rank) {
       size_t emptySquareCounter = 0;
       for (size_t file = 0; file < 8; ++file) {
-        const auto& currentPiece = getPieceAt(rank, file);
+        const auto& currentPiece = getPieceAt({rank, file});
         if (currentPiece.type != PieceType::None) {
           if (emptySquareCounter != 0) {
             // We previously counted empty squares
@@ -122,9 +97,8 @@ struct Board {
     fenStream << ' ';
 
     // Fourth field: En passant target square
-    if (canTakeEnPassant)
-      fenStream << coordinateToAlgebraic(enPassantSquare.first,
-                                         enPassantSquare.second);
+    if (enPassantSquare)
+      fenStream << enPassantSquare.value().toAlgebraic();
     else
       fenStream << '-';
     fenStream << ' ';

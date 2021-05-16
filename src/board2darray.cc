@@ -7,7 +7,12 @@
 #include <unordered_set>
 
 namespace mcc {
-Board2DArray::Board2DArray(std::string fen) : state{} { processFEN(fen); }
+
+Board2DArray::Board2DArray(std::string fen)
+    : state{}, legalMoves{}, enPassantSquare{} {
+  processFEN(fen);
+  generateLegalMoves();
+}
 
 void Board2DArray::processFEN(std::string fen) {
   state = {};
@@ -16,6 +21,11 @@ void Board2DArray::processFEN(std::string fen) {
   std::string temp;
 
   while (ss >> temp) fenFields.push_back(std::move(temp));
+
+  if (fenFields[1] == "w")
+    activeColor = PieceColor::White;
+  else
+    activeColor = PieceColor::Black;
 
   std::vector<std::string> fenRanks;
   ss = std::stringstream(fenFields[0]);
@@ -32,132 +42,160 @@ void Board2DArray::processFEN(std::string fen) {
       if (curr >= '1' && curr <= '8') {
         int squaresToSkip = curr - '0';
         for (size_t i = 0; i < static_cast<size_t>(squaresToSkip); ++i, ++file)
-          setPieceAt(rank, file, Piece());
+          setPieceAt({rank, file}, Piece());
       } else {
-        setPieceAt(rank, file, Piece(curr));
+        setPieceAt({rank, file}, Piece(curr));
       }
     }
   }
 }
 
-void Board2DArray::setPieceAt(size_t rank, size_t file, Piece piece) {
-  size_t pos = 8 * rank + file;
-  state[pos] = piece;
+void Board2DArray::setPieceAt(const Coordinate& square, Piece piece) {
+  state[square.to64Position()] = piece;
 }
 
-Piece Board2DArray::getPieceAt(size_t rank, size_t file) const {
-  return state[8 * rank + file];
+Piece Board2DArray::getPieceAt(const Coordinate& square) const {
+  return state[square.to64Position()];
 }
 
-Piece Board2DArray::getPieceAt(size_t square) const { return state[square]; }
+std::optional<Piece> Board2DArray::makeMove(const Coordinate& from,
+                                            const Coordinate& to) {
+  Move move(from, to);
+  if (legalMoves.contains(move)) {
+    // Move is legal, carry it out
+    const auto& piece = getPieceAt(from);
+    setPieceAt(from, Piece(PieceType::None));
+    setPieceAt(to, piece);
 
-Piece Board2DArray::makeMove(const Move& move, const size_t& enPassantSquare) {
-  const auto& piece = getPieceAt(move.from.first, move.from.second);
-  setPieceAt(move.from.first, move.from.second, Piece(PieceType::None));
-  setPieceAt(move.to.first, move.to.second, piece);
+    if (to == enPassantSquare) {
+      // Move is an en passant capture
+      setPieceAt({from.rank(), to.file()}, Piece(PieceType::None));
+    }
 
-  if (square(move.to.first, move.to.second) == enPassantSquare) {
-    // Move is an en passant capture
-    setPieceAt(move.from.first, move.to.second, Piece(PieceType::None));
+    if (activeColor == PieceColor::Black) {
+      activeColor = PieceColor::White;
+    } else
+      activeColor = PieceColor::Black;
+
+    generateLegalMoves();
+    return piece;
   }
 
-  return piece;
+  return {};
 }
 
-Board2DArray::MoveSet Board2DArray::generateLegalMoves(
-    const PieceColor& activeColor, const size_t& enPassantSquare,
-    const bool& canEnPassant) const {
-  MoveSet legalMoves;
+void Board2DArray::generateLegalMoves() {
+  legalMoves.clear();
   for (size_t square = 0; square < 64; ++square) {
-    if (state[square].color != activeColor) continue;
+    const auto& piece = getPieceAt(square);
 
-    if (state[square].type == PieceType::Pawn) {
-      auto pawnMoves =
-          generateLegalPawnMoves(square, enPassantSquare, canEnPassant);
+    if (piece.type == PieceType::None || piece.color != activeColor) continue;
+
+    if (piece.type == PieceType::Pawn) {
+      const auto pawnMoves = generatePawnMoves(square, piece);
       legalMoves.insert(std::begin(pawnMoves), std::end(pawnMoves));
     }
   }
-
-  return legalMoves;
 }
 
-Board2DArray::MoveSet Board2DArray::generateLegalPawnMoves(
-    const size_t& square, const size_t& enPassantSquare,
-    const bool& canEnPassant) const {
-  MoveSet legalMoves;
-  auto pawn = getPieceAt(square);
-  int direction = 1;
-  if (pawn.color == PieceColor::Black) {
-    direction = -1;
-  }
-  const size_t advanceSquare = square - direction * 8;
-  const size_t advanceSquareTwo = square - direction * 16;
+Board2DArray::MoveSet Board2DArray::generatePawnMoves(
+    const Coordinate& square, const Piece& piece) const {
+  MoveSet legalPawnMoves;
 
-  if ((pawn.color == PieceColor::Black && rank(square) == 1) ||
-      (pawn.color == PieceColor::White && rank(square) == 6)) {
+  // Compute possible squares we can move to
+  const auto advanceSquareOne =
+      (piece.color == PieceColor::White) ? square.above() : square.below();
+  const auto advanceSquareTwo = (piece.color == PieceColor::White)
+                                    ? advanceSquareOne.above()
+                                    : advanceSquareOne.below();
+
+  if ((piece.color == PieceColor::Black && square.rank() == 1) ||
+      (piece.color == PieceColor::White && square.rank() == 6)) {
     // pawn is still at initial position
 
-    if (getPieceAt(advanceSquare).type == PieceType::None &&
+    if (getPieceAt(advanceSquareOne).type == PieceType::None &&
         getPieceAt(advanceSquareTwo).type == PieceType::None) {
       // Check two square advance moves
-      const Move move({rank(square), file(square)},
-                      {rank(advanceSquareTwo), file(advanceSquareTwo)});
-      legalMoves.insert(move);
+      const Move move(square, advanceSquareTwo);
+      legalPawnMoves.insert(move);
     }
   }
 
-  if (getPieceAt(advanceSquare).type == PieceType::None) {
+  if (getPieceAt(advanceSquareOne).type == PieceType::None) {
     // Check one square advance moves
-    const Move move({rank(square), file(square)},
-                    {rank(advanceSquare), file(advanceSquare)});
-    legalMoves.insert(move);
+    const Move move(square, advanceSquareOne);
+    legalPawnMoves.insert(move);
   }
 
   // Capture moves
-  const auto captureLeftSquare = advanceSquare - direction;
-  const auto captureRightSquare = advanceSquare + direction;
+  const auto captureLeftSquare = (piece.color == PieceColor::White)
+                                     ? advanceSquareOne.left()
+                                     : advanceSquareOne.right();
+  const auto captureRightSquare = (piece.color == PieceColor::White)
+                                      ? advanceSquareOne.right()
+                                      : advanceSquareOne.left();
 
   /* White can't take to the left on file 0,
    * black can't take left on file 7 */
-  if ((pawn.color == PieceColor::White && file(square) > 0) ||
-      ((pawn.color == PieceColor::Black && file(square) < 7))) {
+  if ((piece.color == PieceColor::White && square.file() > 0) ||
+      ((piece.color == PieceColor::Black && square.file() < 7))) {
     // Normal Captures
     if (getPieceAt(captureLeftSquare).type != PieceType::None &&
-        getPieceAt(captureLeftSquare).color != pawn.color) {
-      const Move move({rank(square), file(square)},
-                      {rank(captureLeftSquare), file(captureLeftSquare)});
-      legalMoves.insert(move);
-    }
-
-    // En passant capture
-    if (canEnPassant && enPassantSquare == captureLeftSquare &&
-        getPieceAt(enPassantSquare + direction * 8).color != pawn.color) {
-      const Move move({rank(square), file(square)},
-                      {rank(captureLeftSquare), file(captureLeftSquare)});
-      legalMoves.insert(move);
+        getPieceAt(captureLeftSquare).color != piece.color) {
+      const Move move(square, captureLeftSquare);
+      legalPawnMoves.insert(move);
     }
   }
+
   /* Black can't take to the right on file 0,
    * white can't take right on file 7 */
-  if ((pawn.color == PieceColor::Black && file(square) > 0) ||
-      ((pawn.color == PieceColor::White && file(square) < 7))) {
+  if ((piece.color == PieceColor::Black && square.file() > 0) ||
+      ((piece.color == PieceColor::White && square.file() < 7))) {
     // normal capture
     if (getPieceAt(captureRightSquare).type != PieceType::None &&
-        getPieceAt(captureRightSquare).color != pawn.color) {
-      const Move move({rank(square), file(square)},
-                      {rank(captureRightSquare), file(captureRightSquare)});
-      legalMoves.insert(move);
-    }
-
-    // En passant captures
-    if (canEnPassant && enPassantSquare == captureRightSquare &&
-        getPieceAt(enPassantSquare + direction * 8).color != pawn.color) {
-      const Move move({rank(square), file(square)},
-                      {rank(captureRightSquare), file(captureRightSquare)});
-      legalMoves.insert(move);
+        getPieceAt(captureRightSquare).color != piece.color) {
+      const Move move(square, captureRightSquare);
+      legalPawnMoves.insert(move);
     }
   }
-  return legalMoves;
-}
 
+  // // En passant capture
+  // if (enPassantSquare) {
+  //   if (canEnPassant && enPassantSquare == captureLeftSquare &&
+  //       getPieceAt(enPassantSquare + direction * 8).color != pawn.color)
+  //       {
+  //     const Move move({rank(square), file(square)},
+  //                     {rank(captureLeftSquare),
+  //                     file(captureLeftSquare)});
+  //     legalPawnMoves.insert(move);
+  //   }
+  // }
+
+  //   // En passant captures
+  //   if (canEnPassant && enPassantSquare == captureRightSquare &&
+  //       getPieceAt(enPassantSquare + direction * 8).color != pawn.color)
+  //       {
+  //     const Move move({rank(square), file(square)},
+  //                     {rank(captureRightSquare),
+  //                     file(captureRightSquare)});
+  //     legalPawnMoves.insert(move);
+  //   }
+  // }
+
+  return legalPawnMoves;
+}
 }  // namespace mcc
+
+/*// Check if move allows for possible en-passant capture
+    const auto rankDistance = std::abs(static_cast<long int>(move.from.rank()) -
+                                       static_cast<long int>(move.to.rank()));
+    if (piece.type == PieceType::Pawn && rankDistance == 2) {
+      canTakeEnPassant = true;
+      enPassantSquare.setFile(move.file());
+      if (activeColor == PieceColor::White)
+        enPassantSquare.setRank(move.from.rank() - 1);
+      else
+        enPassantSquare.setRank(move.from.rank() + 1);
+    } else {
+      canTakeEnPassant = false;
+    }*/

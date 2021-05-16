@@ -29,23 +29,13 @@ struct MoveHandler : public WebSocket::Handler {
     while (std::getline(param_stream, tmp, ',')) parameters.push_back(tmp);
 
     if (parameters[0] == "MOVE") {
-      const mcc::Move move({stoi(parameters[1]), stoi(parameters[2])},
-                           {stoi(parameters[3]), stoi(parameters[4])});
+      const mcc::Coordinate from{static_cast<size_t>(stoi(parameters[1])),
+                                 static_cast<size_t>(stoi(parameters[2]))};
+      const mcc::Coordinate to{static_cast<size_t>(stoi(parameters[3])),
+                               static_cast<size_t>(stoi(parameters[4]))};
 
-      //
-
-      const auto& legalMoves = engine.board.generateLegalMoves();
-      /* for (const auto& move : legalMoves) {
-        std::cout << "Move: "
-                  << "[" << move.from.first << ", " << move.from.second
-                  << "] -> [" << move.to.first << ", " << move.to.second
-                  << "]\n";
-      }*/
-
-      if (legalMoves.contains(move)) {
-        engine.board.makeMove(move);
+      if (engine.board.makeMove(from, to)) {
         connection->send("LEGAL,YES");
-        std::cout << "\n" << engine.board.fen << "\n";
       } else {
         connection->send("LEGAL,NO");
       }

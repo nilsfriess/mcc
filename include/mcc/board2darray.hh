@@ -1,39 +1,39 @@
 #include <array>
+#include <optional>
 #include <string>
 #include <unordered_set>
 #include <utility>
 #include <vector>
 
+#include "mcc/coordinate.hh"
 #include "mcc/move.hh"
 #include "mcc/piece.hh"
 
 namespace mcc {
 struct Board2DArray {
   using MoveSet = std::unordered_set<Move, move_hash>;
+
   std::array<Piece, 64> state;
+  MoveSet legalMoves;
+
+  std::optional<Coordinate> enPassantSquare;
+  PieceColor activeColor = PieceColor::White;
 
   Board2DArray(std::string fen);
 
   void processFEN(std::string fen);
 
-  void setPieceAt(size_t rank, size_t file, Piece piece);
-  Piece getPieceAt(size_t rank, size_t file) const;
-  Piece getPieceAt(size_t square) const;
+  void setPieceAt(const Coordinate& square, Piece piece);
+  Piece getPieceAt(const Coordinate& square) const;
 
-  MoveSet generateLegalMoves(const PieceColor& activeColor,
-                             const size_t& enPassantSquare,
-                             const bool& canEnPassant) const;
-
-  Piece makeMove(const Move& move, const size_t& enPassantSquare);
+  std::optional<Piece> makeMove(const Coordinate& from, const Coordinate& to);
 
  private:
-  MoveSet generateLegalPawnMoves(const size_t& square,
-                                 const size_t& enPassantSquare,
-                                 const bool& canEnPassant) const;
+  void generateLegalMoves();
 
-  size_t rank(size_t square) const { return square / 8; }
-  size_t file(size_t square) const { return square % 8; }
+  MoveSet generatePawnMoves(const Coordinate& square, const Piece& piece) const;
 
-  size_t square(size_t rank, size_t file) const { return 8 * rank + file; }
+  // if this holds a value, an en passant move to the
+  // given square if possible
 };
 }  // namespace mcc
