@@ -6,6 +6,7 @@
 #include <optional>
 #include <sstream>
 #include <string>
+#include <string_view>
 #include <vector>
 
 #include "mcc/coordinate.hh"
@@ -34,7 +35,7 @@ struct Board {
    * advance; not implemented yet */
   // int halfMoveClock = 0;
 
-  Board(std::string t_fen =
+  Board(const std::string t_fen =
             "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
       : currentPosition(t_fen) {
     generateFEN();
