@@ -34,3 +34,5 @@
 ext 
 build
 
+*.log
+*.txt
