@@ -20,21 +20,6 @@ struct Board {
   BoardRep currentPosition;
   std::string fen;
 
-  PieceColor activeColor = PieceColor::White;
-
-  std::optional<Coordinate> enPassantSquare = {};
-
-  unsigned int fullMoves = 1;
-
-  bool whiteCanCastleKingSide = true;
-  bool whiteCanCastleQueenSide = true;
-  bool blackCanCastleKingSide = true;
-  bool blackCanCastleQueenSide = true;
-
-  /* Number of halfmoves since last capture or pawn
-   * advance; not implemented yet */
-  // int halfMoveClock = 0;
-
   Board(const std::string t_fen =
             "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
       : currentPosition(t_fen) {
@@ -84,31 +69,37 @@ struct Board {
     fenStream << ' ';
 
     // Second field: Active color
-    if (activeColor == PieceColor::White)
+    if (currentPosition.activeColor == PieceColor::White)
       fenStream << 'w';
     else
       fenStream << 'b';
     fenStream << ' ';
 
     // Third field: Castling availability
-    if (whiteCanCastleKingSide) fenStream << 'K';
-    if (whiteCanCastleQueenSide) fenStream << 'Q';
-    if (blackCanCastleKingSide) fenStream << 'k';
-    if (blackCanCastleQueenSide) fenStream << 'q';
+    if (currentPosition.whiteCanCastleKingSide) fenStream << 'K';
+    if (currentPosition.whiteCanCastleQueenSide) fenStream << 'Q';
+    if (currentPosition.blackCanCastleKingSide) fenStream << 'k';
+    if (currentPosition.blackCanCastleQueenSide) fenStream << 'q';
+    if (!currentPosition.whiteCanCastleKingSide &&
+        !currentPosition.whiteCanCastleQueenSide &&
+        !currentPosition.blackCanCastleKingSide &&
+        !currentPosition.blackCanCastleQueenSide)
+      fenStream << '-';
     fenStream << ' ';
 
     // Fourth field: En passant target square
-    if (enPassantSquare)
-      fenStream << enPassantSquare.value().toAlgebraic();
+    if (currentPosition.enPassantSquare)
+      fenStream << currentPosition.enPassantSquare.value().toAlgebraic();
     else
       fenStream << '-';
     fenStream << ' ';
+
     // Fifth field: Halfmove clock (not implemented yet)
-    fenStream << '0';
+    fenStream << currentPosition.halfMoves;
     fenStream << ' ';
 
     // Sixth field: Fullmove number
-    fenStream << fullMoves;
+    fenStream << currentPosition.fullMoves;
 
     fen = fenStream.str();
   }

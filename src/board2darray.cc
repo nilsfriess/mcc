@@ -22,10 +22,50 @@ void Board2DArray::processFEN(std::string fen) {
 
   while (ss >> temp) fenFields.push_back(std::move(temp));
 
+  // Process active color field
   if (fenFields[1] == "w")
     activeColor = PieceColor::White;
   else
     activeColor = PieceColor::Black;
+
+  // Process castling rights
+  auto cnt = 0;
+  const auto& castlingRights = fenFields[2];
+  whiteCanCastleKingSide = false;
+  whiteCanCastleQueenSide = false;
+  blackCanCastleKingSide = false;
+  blackCanCastleQueenSide = false;
+
+  if (castlingRights[cnt] == 'K') {
+    whiteCanCastleKingSide = true;
+    cnt++;
+  }
+  if (castlingRights[cnt] == 'Q') {
+    whiteCanCastleQueenSide = true;
+    cnt++;
+  }
+  if (castlingRights[cnt] == 'k') {
+    blackCanCastleKingSide = true;
+    cnt++;
+  }
+  if (castlingRights[cnt] == 'q') {
+    blackCanCastleQueenSide = true;
+  }
+
+  // Process en passant square
+  const auto& enPassantSquareFEN = fenFields[3];
+  if (enPassantSquareFEN == "-")
+    enPassantSquare = {};
+  else
+    enPassantSquare = Coordinate(enPassantSquareFEN);
+
+  // Process half moves
+  const auto& halfMovesFEN = fenFields[4];
+  halfMoves = std::stoi(halfMovesFEN);
+
+  // Process half moves
+  const auto& fullMovesFEN = fenFields[5];
+  fullMoves = std::stoi(fullMovesFEN);
 
   std::vector<std::string> fenRanks;
   ss = std::stringstream(fenFields[0]);
@@ -34,15 +74,18 @@ void Board2DArray::processFEN(std::string fen) {
   size_t positionInFen =
       0;  // Save position separately, since files can be skipped in FEN
   for (size_t rank = 0; rank < 8; ++rank) {
-    std::string currentRank = fenRanks[rank];
+    const auto& currentRank = fenRanks[rank];
     positionInFen = 0;
     for (size_t file = 0; file < 8; ++file, ++positionInFen) {
       char curr = currentRank[positionInFen];
 
       if (curr >= '1' && curr <= '8') {
         int squaresToSkip = curr - '0';
-        for (size_t i = 0; i < static_cast<size_t>(squaresToSkip); ++i, ++file)
+        for (size_t i = 0; i < static_cast<size_t>(squaresToSkip);
+             ++i, ++file) {
           setPieceAt({rank, file}, Piece());
+        }
+        --file;  // The last increment is too much
       } else {
         setPieceAt({rank, file}, Piece(curr));
       }
@@ -61,9 +104,24 @@ Piece Board2DArray::getPieceAt(const Coordinate& square) const {
 std::optional<Piece> Board2DArray::makeMove(const Coordinate& from,
                                             const Coordinate& to) {
   Move move(from, to);
+
   if (legalMoves.contains(move)) {
     // Move is legal, carry it out
     const auto& piece = getPieceAt(from);
+
+    // First check if move allows for en passant capture in the next move
+    const auto rankDistance = std::abs(static_cast<long int>(from.rank()) -
+                                       static_cast<long int>(to.rank()));
+    if (piece.type == PieceType::Pawn && rankDistance == 2) {
+      if (activeColor == PieceColor::White) {
+        enPassantSquare = Coordinate(from.file(), to.below().rank());
+      } else {
+        enPassantSquare = Coordinate(from.file(), to.above().rank());
+      }
+    } else {
+      enPassantSquare = {};
+    }
+
     setPieceAt(from, Piece(PieceType::None));
     setPieceAt(to, piece);
 
@@ -77,7 +135,9 @@ std::optional<Piece> Board2DArray::makeMove(const Coordinate& from,
     } else
       activeColor = PieceColor::Black;
 
-    generateLegalMoves();
+    generateLegalMoves();  // Update the possible legal moves
+
+    ++fullMoves;
     return piece;
   }
 

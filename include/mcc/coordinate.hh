@@ -1,6 +1,7 @@
 #pragma once
 
 #include <cstddef>
+#include <iostream>
 #include <string>
 
 namespace mcc {
@@ -16,6 +17,15 @@ struct Coordinate {
   Coordinate(std::size_t t_position)
       : _rank(t_position / 8), _file(t_position % 8) {}
 
+  Coordinate(const std::string& t_algebraic) {
+    const auto rank = static_cast<std::size_t>(t_algebraic.at(0) - 'a');
+    const auto file = static_cast<std::size_t>(t_algebraic.at(1) - '0');
+
+    // we number from top to bottom, algebraic is from bottom to top
+    _rank = rank;
+    _file = 8 - file;
+  }
+
   std::size_t rank() const { return _rank; }
   std::size_t file() const { return _file; }
 
@@ -29,7 +39,7 @@ struct Coordinate {
   std::size_t to64Position() const { return 8 * _rank + _file; }
   std::string toAlgebraic() const {
     return std::string(1, 'a' + static_cast<char>(_rank)) +
-           std::to_string(_file + 1);
+           std::to_string(8 - _file);
   }
 
   bool operator==(const Coordinate& other) const {

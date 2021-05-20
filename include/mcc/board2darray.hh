@@ -19,6 +19,14 @@ struct Board2DArray {
   std::optional<Coordinate> enPassantSquare;
   PieceColor activeColor = PieceColor::White;
 
+  int halfMoves = 0;
+  int fullMoves = 0;
+
+  bool whiteCanCastleKingSide = true;
+  bool whiteCanCastleQueenSide = true;
+  bool blackCanCastleKingSide = true;
+  bool blackCanCastleQueenSide = true;
+
   Board2DArray(std::string fen);
 
   void processFEN(std::string fen);
