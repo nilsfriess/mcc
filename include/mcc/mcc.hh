@@ -13,5 +13,7 @@ class MCC {
  public:
   std::optional<Move> makeMove(Coordinate from, Coordinate to);
   std::string fen() const { return board.fen; }
+
+  void reset();
 };
 }  // namespace mcc

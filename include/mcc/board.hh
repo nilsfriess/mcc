@@ -18,7 +18,7 @@ namespace mcc {
 template <class BoardRep>
 struct Board {
   BoardRep currentPosition;
-  std::string fen;
+  std::string fen = "";
 
   Board(const std::string t_fen =
             "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1") {

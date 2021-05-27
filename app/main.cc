@@ -41,6 +41,9 @@ struct MoveHandler : public WebSocket::Handler {
       }
     } else if (parameters[0] == "FEN") {
       connection->send("FEN," + engine.fen());
+    } else if (parameters[0] == "RESET") {
+      std::cout << "Resetting board...\n";
+      engine.reset();
     }
   }
 
