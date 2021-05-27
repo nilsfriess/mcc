@@ -40,3 +40,31 @@ TEST_CASE(
   REQUIRE(board.fen ==
           "rnbqkbnr/pp1p1ppp/8/2pPp3/8/8/PPP1PPPP/RNBQKBNR w KQkq c6 0 3");
 }
+
+TEST_CASE("Constructor throws when passed invalid FEN", "[board") {
+  const auto FENs = {"", "rnbqkbnr/pp1p1ppp/8/2pPp3"};
+
+  for (const auto& fen : FENs) REQUIRE_THROWS(Board<Board2DArray>(fen));
+}
+
+TEST_CASE(
+    "Given the initial position, there are exactly four legal knight moves",
+    "[board") {
+  Board<Board2DArray> board;
+
+  const auto knight_f3 = Move{{"g1"}, {"f3"}};
+  const auto knight_h3 = Move{{"g1"}, {"h3"}};
+  const auto knight_c3 = Move{{"b1"}, {"c3"}};
+  const auto knight_a3 = Move{{"b1"}, {"a3"}};
+
+  REQUIRE(board.currentPosition.legalMoves.contains(knight_f3));
+  REQUIRE(board.currentPosition.legalMoves.contains(knight_h3));
+  REQUIRE(board.currentPosition.legalMoves.contains(knight_c3));
+  REQUIRE(board.currentPosition.legalMoves.contains(knight_a3));
+}
+
+TEST_CASE("Knight on square d5 on empty board has 8 legal moves", "[board]") {
+  Board<Board2DArray> board("8/8/8/3N4/8/8/8/8 w - - 0 1");
+
+  REQUIRE(board.currentPosition.legalMoves.size() == 8);
+}
