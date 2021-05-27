@@ -10,7 +10,11 @@ struct Coordinate {
   std::size_t _rank = 0;
   std::size_t _file = 0;
 
+  bool outsideOfBoard = false;
+
  public:
+  Coordinate() = default;
+
   Coordinate(std::size_t t_rank, std::size_t t_file)
       : _rank(t_rank), _file(t_file) {}
 
@@ -18,13 +22,15 @@ struct Coordinate {
       : _rank(t_position / 8), _file(t_position % 8) {}
 
   Coordinate(const std::string& t_algebraic) {
-    const auto rank = static_cast<std::size_t>(t_algebraic.at(0) - 'a');
-    const auto file = static_cast<std::size_t>(t_algebraic.at(1) - '0');
+    const auto file = static_cast<std::size_t>(t_algebraic.at(0) - 'a');
+    const auto rank = static_cast<std::size_t>(t_algebraic.at(1) - '0');
 
     // we number from top to bottom, algebraic is from bottom to top
-    _rank = rank;
-    _file = 8 - file;
+    _rank = 8 - rank;
+    _file = file;
   }
+
+  bool isOutsideOfBoard() const { return outsideOfBoard; }
 
   std::size_t rank() const { return _rank; }
   std::size_t file() const { return _file; }
@@ -38,8 +44,8 @@ struct Coordinate {
 
   std::size_t to64Position() const { return 8 * _rank + _file; }
   std::string toAlgebraic() const {
-    return std::string(1, 'a' + static_cast<char>(_rank)) +
-           std::to_string(8 - _file);
+    return std::string(1, 'a' + static_cast<char>(_file)) +
+           std::to_string(8 - _rank);
   }
 
   bool operator==(const Coordinate& other) const {
@@ -47,29 +53,49 @@ struct Coordinate {
   }
 
   Coordinate above() const {
+    if (outsideOfBoard) return *this;
+
     if (_rank != 0)
       return Coordinate(_rank - 1, _file);
-    else
-      return *this;
+    else {
+      Coordinate coord = *this;
+      coord.outsideOfBoard = true;
+      return coord;
+    }
   }
 
   Coordinate below() const {
+    if (outsideOfBoard) return *this;
+
     if (_rank != 7)
       return Coordinate(_rank + 1, _file);
-    else
-      return *this;
+    else {
+      Coordinate coord = *this;
+      coord.outsideOfBoard = true;
+      return coord;
+    }
   }
   Coordinate left() const {
+    if (outsideOfBoard) return *this;
+
     if (_file != 0)
       return Coordinate(_rank, _file - 1);
-    else
-      return *this;
+    else {
+      Coordinate coord = *this;
+      coord.outsideOfBoard = true;
+      return coord;
+    }
   }
   Coordinate right() const {
+    if (outsideOfBoard) return *this;
+
     if (_file != 7)
       return Coordinate(_rank, _file + 1);
-    else
-      return *this;
+    else {
+      Coordinate coord = *this;
+      coord.outsideOfBoard = true;
+      return coord;
+    }
   }
 };
 }  // namespace mcc

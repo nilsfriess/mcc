@@ -6,9 +6,13 @@
 #include "mcc/coordinate.hh"
 
 namespace mcc {
+enum class MoveType { Normal, Capture, EnPassantCapture };
+
 struct Move {
   Coordinate from;
   Coordinate to;
+
+  MoveType type = MoveType::Normal;
 
   Move() = default;
   Move(Coordinate t_from, Coordinate t_to) : from(t_from), to(t_to) {}

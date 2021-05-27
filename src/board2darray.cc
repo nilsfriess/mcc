@@ -8,19 +8,15 @@
 
 namespace mcc {
 
-Board2DArray::Board2DArray(std::string fen)
-    : state{}, legalMoves{}, enPassantSquare{} {
-  processFEN(fen);
-  generateLegalMoves();
-}
-
-void Board2DArray::processFEN(std::string fen) {
+bool Board2DArray::processFEN(std::string fen) {
   state = {};
   std::vector<std::string> fenFields;
   std::stringstream ss(fen);
   std::string temp;
 
   while (ss >> temp) fenFields.push_back(std::move(temp));
+
+  if (fenFields.size() != 6) return false;
 
   // Process active color field
   if (fenFields[1] == "w")
@@ -91,6 +87,9 @@ void Board2DArray::processFEN(std::string fen) {
       }
     }
   }
+
+  generateLegalMoves();
+  return true;
 }
 
 void Board2DArray::setPieceAt(const Coordinate& square, Piece piece) {
@@ -101,8 +100,8 @@ Piece Board2DArray::getPieceAt(const Coordinate& square) const {
   return state[square.to64Position()];
 }
 
-std::optional<Piece> Board2DArray::makeMove(const Coordinate& from,
-                                            const Coordinate& to) {
+std::optional<Move> Board2DArray::makeMove(const Coordinate& from,
+                                           const Coordinate& to) {
   Move move(from, to);
 
   if (legalMoves.contains(move)) {
@@ -122,12 +121,15 @@ std::optional<Piece> Board2DArray::makeMove(const Coordinate& from,
       enPassantSquare = {};
     }
 
+    if (getPieceAt(to).type != PieceType::None) move.type = MoveType::Capture;
+
     setPieceAt(from, Piece(PieceType::None));
     setPieceAt(to, piece);
 
     if (to == enPassantSquare) {
       // Move is an en passant capture
       setPieceAt({from.rank(), to.file()}, Piece(PieceType::None));
+      move.type = MoveType::EnPassantCapture;
     }
 
     if (activeColor == PieceColor::Black) {
@@ -138,7 +140,7 @@ std::optional<Piece> Board2DArray::makeMove(const Coordinate& from,
     generateLegalMoves();  // Update the possible legal moves
 
     ++fullMoves;
-    return piece;
+    return move;
   }
 
   return {};
@@ -151,9 +153,38 @@ void Board2DArray::generateLegalMoves() {
 
     if (piece.type == PieceType::None || piece.color != activeColor) continue;
 
-    if (piece.type == PieceType::Pawn) {
-      const auto pawnMoves = generatePawnMoves(square, piece);
-      legalMoves.insert(std::begin(pawnMoves), std::end(pawnMoves));
+    switch (piece.type) {
+      case PieceType::Pawn: {
+        const auto pawnMoves = generatePawnMoves(square, piece);
+        legalMoves.insert(std::begin(pawnMoves), std::end(pawnMoves));
+        break;
+      }
+
+      case PieceType::Knight: {
+        const auto knightMoves = generateKnightMoves(square, piece);
+        legalMoves.insert(std::begin(knightMoves), std::end(knightMoves));
+        break;
+      }
+
+      case PieceType::Bishop: {
+        break;
+      }
+
+      case PieceType::Rook: {
+        break;
+      }
+
+      case PieceType::Queen: {
+        break;
+      }
+
+      case PieceType::King: {
+        break;
+      }
+
+      case PieceType::None:
+      default:
+        break;
     }
   }
 }
@@ -244,6 +275,42 @@ Board2DArray::MoveSet Board2DArray::generatePawnMoves(
 
   return legalPawnMoves;
 }
+
+Board2DArray::MoveSet Board2DArray::generateKnightMoves(
+    const Coordinate& square, const Piece& piece) const {
+  MoveSet knightMoves;
+
+  // Manually create all 8 possible moves and check if they make sense
+  auto possibleSquares = std::vector<Coordinate>{};
+
+  possibleSquares.push_back(square.above().above().left());
+  possibleSquares.push_back(square.above().left().left());
+  possibleSquares.push_back(square.above().above().right());
+  possibleSquares.push_back(square.above().right().right());
+  possibleSquares.push_back(square.below().below().left());
+  possibleSquares.push_back(square.below().left().left());
+  possibleSquares.push_back(square.below().below().right());
+  possibleSquares.push_back(square.below().right().right());
+
+  for (const auto& possibleSquare : possibleSquares) {
+    if (!possibleSquare.isOutsideOfBoard()) {
+      const auto targetPiece = getPieceAt(possibleSquare);
+      if (targetPiece.type == PieceType::None ||
+          targetPiece.color != piece.color) {
+        // Move is semilegal, check if it's a capture
+        auto move = Move{square, possibleSquare};
+        if (getPieceAt(possibleSquare).type != PieceType::None &&
+            getPieceAt(possibleSquare).color != piece.color)
+          move.type = MoveType::Capture;
+
+        knightMoves.insert(move);
+      }
+    }
+  }
+
+  return knightMoves;
+}
+
 }  // namespace mcc
 
 /*// Check if move allows for possible en-passant capture
