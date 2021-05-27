@@ -167,6 +167,8 @@ void Board2DArray::generateLegalMoves() {
       }
 
       case PieceType::Bishop: {
+        const auto bishopMoves = generateBishopMoves(square, piece);
+        legalMoves.insert(std::begin(bishopMoves), std::end(bishopMoves));
         break;
       }
 
@@ -309,6 +311,91 @@ Board2DArray::MoveSet Board2DArray::generateKnightMoves(
   }
 
   return knightMoves;
+}
+
+Board2DArray::MoveSet Board2DArray::generateBishopMoves(
+    const Coordinate& square, const Piece& piece) const {
+  MoveSet bishopMoves;
+
+  /* Bishop moves diagonally until it hits a piece of the same color,
+   * the end of the board or a piece of the opposite colour that it
+   * can capture
+   */
+
+  const auto squareBlockedByOwnPieceOrOutsideBoard =
+      [&](const Coordinate& targetSquare) {
+        const auto targetPiece = getPieceAt(targetSquare);
+
+        if (targetSquare.isOutsideOfBoard()) {
+          return true;
+        }
+
+        if (targetPiece.type != PieceType::None &&
+            targetPiece.color == piece.color)
+          return true;
+
+        return false;
+      };
+
+  {
+    // first check up and left direction
+    auto possibleSquare = square.above().left();
+    /* td::cout << "Move from " << square.toAlgebraic() << " to "
+               << possibleSquare.toAlgebraic() << " out of board or blocked? "
+               << squareBlockedByOwnPieceOrOutsideBoard(possibleSquare) << "\n";
+       */
+    while (!squareBlockedByOwnPieceOrOutsideBoard(possibleSquare)) {
+      const auto targetPiece = getPieceAt(possibleSquare);
+      auto move = Move{square, possibleSquare};
+      bishopMoves.insert(move);
+
+      if (targetPiece.type != PieceType::None) move.type = MoveType::Capture;
+
+      possibleSquare = possibleSquare.above().left();
+    }
+  }
+
+  {
+    // first check up and right direction
+    auto possibleSquare = square.above().right();
+    while (!squareBlockedByOwnPieceOrOutsideBoard(possibleSquare)) {
+      const auto targetPiece = getPieceAt(possibleSquare);
+      auto move = Move{square, possibleSquare};
+      bishopMoves.insert(move);
+
+      if (targetPiece.type != PieceType::None) move.type = MoveType::Capture;
+
+      possibleSquare = possibleSquare.above().right();
+    }
+  }
+  {
+    // first check down and left direction
+    auto possibleSquare = square.below().left();
+    while (!squareBlockedByOwnPieceOrOutsideBoard(possibleSquare)) {
+      const auto targetPiece = getPieceAt(possibleSquare);
+      auto move = Move{square, possibleSquare};
+      bishopMoves.insert(move);
+
+      if (targetPiece.type != PieceType::None) move.type = MoveType::Capture;
+
+      possibleSquare = possibleSquare.below().left();
+    }
+  }
+  {
+    // first check down and right direction
+    auto possibleSquare = square.below().right();
+    while (!squareBlockedByOwnPieceOrOutsideBoard(possibleSquare)) {
+      const auto targetPiece = getPieceAt(possibleSquare);
+      auto move = Move{square, possibleSquare};
+      bishopMoves.insert(move);
+
+      if (targetPiece.type != PieceType::None) move.type = MoveType::Capture;
+
+      possibleSquare = possibleSquare.below().right();
+    }
+  }
+
+  return bishopMoves;
 }
 
 }  // namespace mcc

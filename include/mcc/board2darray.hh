@@ -41,5 +41,7 @@ class Board2DArray {
   MoveSet generatePawnMoves(const Coordinate& square, const Piece& piece) const;
   MoveSet generateKnightMoves(const Coordinate& square,
                               const Piece& piece) const;
+  MoveSet generateBishopMoves(const Coordinate& square,
+                              const Piece& piece) const;
 };
 }  // namespace mcc

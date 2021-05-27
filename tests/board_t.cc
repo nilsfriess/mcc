@@ -68,3 +68,17 @@ TEST_CASE("Knight on square d5 on empty board has 8 legal moves", "[board]") {
 
   REQUIRE(board.currentPosition.legalMoves.size() == 8);
 }
+
+TEST_CASE("After 1. e4 there are 5 legal bishop moves", "[board]") {
+  Board<Board2DArray> board;
+  board.makeMove({"e2"}, {"e4"});
+  board.makeMove({"e7"}, {"e5"});
+
+  const auto bishop_moves = {Move{{"f1"}, {"e2"}}, Move{{"f1"}, {"e2"}},
+                             Move{{"f1"}, {"e2"}}, Move{{"f1"}, {"e2"}},
+                             Move{{"f1"}, {"e2"}}};
+
+  for (const auto& move : bishop_moves) {
+    REQUIRE(board.currentPosition.legalMoves.contains(move));
+  }
+}
