@@ -1,5 +1,10 @@
 #include "mcc/mcc.hh"
 
-#include <iostream>
+#include "mcc/move.hh"
 
-namespace mcc {}  // namespace mcc
+namespace mcc {
+std::optional<Move> MCC::makeMove(Coordinate from, Coordinate to) {
+  return board.makeMove(from, to);
+}
+
+}  // namespace mcc

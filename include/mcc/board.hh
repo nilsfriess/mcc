@@ -21,8 +21,10 @@ struct Board {
   std::string fen;
 
   Board(const std::string t_fen =
-            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1")
-      : currentPosition(t_fen) {
+            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1") {
+    if (!currentPosition.processFEN(t_fen)) {
+      throw std::invalid_argument("Invalid FEN");
+    }
     generateFEN();
   }
 
@@ -31,15 +33,15 @@ struct Board {
   }
 
   /* This function tries to make the provided move.
-   * Returns false, if the move is illegal and true if the move is legal */
-  bool makeMove(const Coordinate& from, const Coordinate& to) {
-    const auto piece = currentPosition.makeMove(from, to);
+   * Returns {}, if the move is illegal and the move if the move is legal */
+  std::optional<Move> makeMove(const Coordinate& from, const Coordinate& to) {
+    const auto move = currentPosition.makeMove(from, to);
 
-    if (!piece)  // move is illegal
-      return false;
-    else {  // move is legal
+    if (!move) {  // move is illegal
+      return {};
+    } else {  // move is legal
       generateFEN();
-      return true;
+      return move;
     }
   }
 

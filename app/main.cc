@@ -34,13 +34,13 @@ struct MoveHandler : public WebSocket::Handler {
       const mcc::Coordinate to{static_cast<size_t>(stoi(parameters[3])),
                                static_cast<size_t>(stoi(parameters[4]))};
 
-      if (engine.board.makeMove(from, to)) {
+      if (engine.makeMove(from, to)) {
         connection->send("LEGAL,YES");
       } else {
         connection->send("LEGAL,NO");
       }
     } else if (parameters[0] == "FEN") {
-      connection->send("FEN," + engine.board.fen);
+      connection->send("FEN," + engine.fen());
     }
   }
 
