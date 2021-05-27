@@ -82,3 +82,15 @@ TEST_CASE("After 1. e4 there are 5 legal bishop moves", "[board]") {
     REQUIRE(board.currentPosition.legalMoves.contains(move));
   }
 }
+
+TEST_CASE("A single bishop on e5 has 13 legal moves ", "[board]") {
+  Board<Board2DArray> board("8/8/8/4B3/8/8/8/8 w - - 0 1");
+
+  REQUIRE(board.currentPosition.legalMoves.size() == 13);
+}
+
+TEST_CASE("A single bishop on a1 has 7 legal moves ", "[board]") {
+  Board<Board2DArray> board("8/8/8/8/8/8/8/B7 w - - 0 1");
+
+  REQUIRE(board.currentPosition.legalMoves.size() == 7);
+}
