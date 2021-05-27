@@ -94,3 +94,15 @@ TEST_CASE("A single bishop on a1 has 7 legal moves ", "[board]") {
 
   REQUIRE(board.currentPosition.legalMoves.size() == 7);
 }
+
+TEST_CASE("A single ook on d5 has 14 legal moves", "[board]") {
+  Board<Board2DArray> board("8/8/8/3R4/8/8/8/8 w - - 0 1");
+
+  REQUIRE(board.currentPosition.legalMoves.size() == 14);
+}
+
+TEST_CASE("There are 20 legal moves from the initial position", "[board]") {
+  Board<Board2DArray> board;
+
+  REQUIRE(board.currentPosition.legalMoves.size() == 20);
+}

@@ -43,5 +43,9 @@ class Board2DArray {
                               const Piece& piece) const;
   MoveSet generateBishopMoves(const Coordinate& square,
                               const Piece& piece) const;
+  MoveSet generateRookMoves(const Coordinate& square, const Piece& piece) const;
+
+  bool squareBlockedByOwnPieceOrOutsideBoard(const Coordinate& targetSquare,
+                                             const Piece& piece) const;
 };
 }  // namespace mcc

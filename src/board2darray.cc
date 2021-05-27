@@ -173,10 +173,18 @@ void Board2DArray::generateLegalMoves() {
       }
 
       case PieceType::Rook: {
+        const auto rookMoves = generateRookMoves(square, piece);
+        legalMoves.insert(std::begin(rookMoves), std::end(rookMoves));
         break;
       }
 
       case PieceType::Queen: {
+        // Queen moves are the union of bishop-type and rook-type moves
+        const auto queenMovesHorizVert = generateRookMoves(square, piece);
+        const auto queenMovesDiag = generateBishopMoves(square, piece);
+        legalMoves.insert(std::begin(queenMovesHorizVert),
+                          std::end(queenMovesHorizVert));
+        legalMoves.insert(std::begin(queenMovesDiag), std::end(queenMovesDiag));
         break;
       }
 
@@ -317,25 +325,10 @@ Board2DArray::MoveSet Board2DArray::generateBishopMoves(
     const Coordinate& square, const Piece& piece) const {
   MoveSet bishopMoves;
 
-  /* Bishop moves diagonally until it hits a piece of the same color,
-   * the end of the board or a piece of the opposite colour that it
-   * can capture
+  /* bishop moves horizontally or vertically until it hits a piece of the same
+   * color, the end of the board or a piece of the opposite colour that it can
+   * capture
    */
-
-  const auto squareBlockedByOwnPieceOrOutsideBoard =
-      [&](const Coordinate& targetSquare) {
-        const auto targetPiece = getPieceAt(targetSquare);
-
-        if (targetSquare.isOutsideOfBoard()) {
-          return true;
-        }
-
-        if (targetPiece.type != PieceType::None &&
-            targetPiece.color == piece.color)
-          return true;
-
-        return false;
-      };
 
   {
     // first check up and left direction
@@ -344,7 +337,7 @@ Board2DArray::MoveSet Board2DArray::generateBishopMoves(
                << possibleSquare.toAlgebraic() << " out of board or blocked? "
                << squareBlockedByOwnPieceOrOutsideBoard(possibleSquare) << "\n";
        */
-    while (!squareBlockedByOwnPieceOrOutsideBoard(possibleSquare)) {
+    while (!squareBlockedByOwnPieceOrOutsideBoard(possibleSquare, piece)) {
       const auto targetPiece = getPieceAt(possibleSquare);
       auto move = Move{square, possibleSquare};
       bishopMoves.insert(move);
@@ -358,7 +351,7 @@ Board2DArray::MoveSet Board2DArray::generateBishopMoves(
   {
     // first check up and right direction
     auto possibleSquare = square.above().right();
-    while (!squareBlockedByOwnPieceOrOutsideBoard(possibleSquare)) {
+    while (!squareBlockedByOwnPieceOrOutsideBoard(possibleSquare, piece)) {
       const auto targetPiece = getPieceAt(possibleSquare);
       auto move = Move{square, possibleSquare};
       bishopMoves.insert(move);
@@ -371,7 +364,7 @@ Board2DArray::MoveSet Board2DArray::generateBishopMoves(
   {
     // first check down and left direction
     auto possibleSquare = square.below().left();
-    while (!squareBlockedByOwnPieceOrOutsideBoard(possibleSquare)) {
+    while (!squareBlockedByOwnPieceOrOutsideBoard(possibleSquare, piece)) {
       const auto targetPiece = getPieceAt(possibleSquare);
       auto move = Move{square, possibleSquare};
       bishopMoves.insert(move);
@@ -384,7 +377,7 @@ Board2DArray::MoveSet Board2DArray::generateBishopMoves(
   {
     // first check down and right direction
     auto possibleSquare = square.below().right();
-    while (!squareBlockedByOwnPieceOrOutsideBoard(possibleSquare)) {
+    while (!squareBlockedByOwnPieceOrOutsideBoard(possibleSquare, piece)) {
       const auto targetPiece = getPieceAt(possibleSquare);
       auto move = Move{square, possibleSquare};
       bishopMoves.insert(move);
@@ -396,6 +389,90 @@ Board2DArray::MoveSet Board2DArray::generateBishopMoves(
   }
 
   return bishopMoves;
+}
+
+Board2DArray::MoveSet Board2DArray::generateRookMoves(
+    const Coordinate& square, const Piece& piece) const {
+  MoveSet rookMoves;
+
+  /* rook moves horizontally or vertically until it hits a piece of the same
+   * color, the end of the board or a piece of the opposite colour that it can
+   * capture
+   */
+
+  {
+    // first check up
+    auto possibleSquare = square.above();
+    /* td::cout << "Move from " << square.toAlgebraic() << " to "
+               << possibleSquare.toAlgebraic() << " out of board or blocked? "
+               << squareBlockedByOwnPieceOrOutsideBoard(possibleSquare) << "\n";
+       */
+    while (!squareBlockedByOwnPieceOrOutsideBoard(possibleSquare, piece)) {
+      const auto targetPiece = getPieceAt(possibleSquare);
+      auto move = Move{square, possibleSquare};
+      rookMoves.insert(move);
+
+      if (targetPiece.type != PieceType::None) move.type = MoveType::Capture;
+
+      possibleSquare = possibleSquare.above();
+    }
+  }
+
+  {
+    // first check left
+    auto possibleSquare = square.left();
+    while (!squareBlockedByOwnPieceOrOutsideBoard(possibleSquare, piece)) {
+      const auto targetPiece = getPieceAt(possibleSquare);
+      auto move = Move{square, possibleSquare};
+      rookMoves.insert(move);
+
+      if (targetPiece.type != PieceType::None) move.type = MoveType::Capture;
+
+      possibleSquare = possibleSquare.left();
+    }
+  }
+  {
+    // first check down
+    auto possibleSquare = square.below();
+    while (!squareBlockedByOwnPieceOrOutsideBoard(possibleSquare, piece)) {
+      const auto targetPiece = getPieceAt(possibleSquare);
+      auto move = Move{square, possibleSquare};
+      rookMoves.insert(move);
+
+      if (targetPiece.type != PieceType::None) move.type = MoveType::Capture;
+
+      possibleSquare = possibleSquare.below();
+    }
+  }
+  {
+    // first check right direction
+    auto possibleSquare = square.right();
+    while (!squareBlockedByOwnPieceOrOutsideBoard(possibleSquare, piece)) {
+      const auto targetPiece = getPieceAt(possibleSquare);
+      auto move = Move{square, possibleSquare};
+      rookMoves.insert(move);
+
+      if (targetPiece.type != PieceType::None) move.type = MoveType::Capture;
+
+      possibleSquare = possibleSquare.right();
+    }
+  }
+
+  return rookMoves;
+}
+
+bool Board2DArray::squareBlockedByOwnPieceOrOutsideBoard(
+    const Coordinate& targetSquare, const Piece& piece) const {
+  const auto targetPiece = getPieceAt(targetSquare);
+
+  if (targetSquare.isOutsideOfBoard()) {
+    return true;
+  }
+
+  if (targetPiece.type != PieceType::None && targetPiece.color == piece.color)
+    return true;
+
+  return false;
 }
 
 }  // namespace mcc
