@@ -16,6 +16,7 @@ class Board2DArray {
 
   std::array<Piece, 64> state;
   MoveSet legalMoves = {};
+  MoveSet opponentLegalMoves = {};
 
   std::optional<Coordinate> enPassantSquare = {};
   PieceColor activeColor = PieceColor::White;
@@ -37,6 +38,11 @@ class Board2DArray {
 
  private:
   void generateLegalMoves();
+  void generateOpponentLegalMoves();
+
+  void computeLegalMoves(MoveSet& moveSet,
+                         std::vector<Coordinate> attackedSquares,
+                         const Coordinate& square, const Piece& piece);
 
   MoveSet generatePawnMoves(const Coordinate& square, const Piece& piece) const;
   MoveSet generateKnightMoves(const Coordinate& square,

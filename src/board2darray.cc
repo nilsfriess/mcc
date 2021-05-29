@@ -1,5 +1,6 @@
 #include "mcc/board2darray.hh"
 
+#include <algorithm>
 #include <cmath>
 #include <iostream>
 #include <sstream>
@@ -132,6 +133,8 @@ std::optional<Move> Board2DArray::makeMove(const Coordinate& from,
     setPieceAt(from, Piece(PieceType::None));
     setPieceAt(to, piece);
 
+    generateOpponentLegalMoves();
+
     if (activeColor == PieceColor::Black) {
       activeColor = PieceColor::White;
     } else
@@ -153,51 +156,85 @@ void Board2DArray::generateLegalMoves() {
 
     if (piece.type == PieceType::None || piece.color != activeColor) continue;
 
-    switch (piece.type) {
-      case PieceType::Pawn: {
-        const auto pawnMoves = generatePawnMoves(square, piece);
-        legalMoves.insert(std::begin(pawnMoves), std::end(pawnMoves));
-        break;
-      }
+    std::vector<Coordinate> attackedSquares;
+    for (const auto& move : opponentLegalMoves)
+      attackedSquares.push_back(move.to);
 
-      case PieceType::Knight: {
-        const auto knightMoves = generateKnightMoves(square, piece);
-        legalMoves.insert(std::begin(knightMoves), std::end(knightMoves));
-        break;
-      }
+    computeLegalMoves(legalMoves, attackedSquares, square, piece);
+  }
+}
+void Board2DArray::generateOpponentLegalMoves() {
+  opponentLegalMoves.clear();
+  for (size_t square = 0; square < 64; ++square) {
+    const auto& piece = getPieceAt(square);
 
-      case PieceType::Bishop: {
-        const auto bishopMoves = generateBishopMoves(square, piece);
-        legalMoves.insert(std::begin(bishopMoves), std::end(bishopMoves));
-        break;
-      }
+    if (piece.type == PieceType::None || piece.color != activeColor) continue;
 
-      case PieceType::Rook: {
-        const auto rookMoves = generateRookMoves(square, piece);
-        legalMoves.insert(std::begin(rookMoves), std::end(rookMoves));
-        break;
-      }
+    computeLegalMoves(opponentLegalMoves, {}, square, piece);
+  }
+}
 
-      case PieceType::Queen: {
-        // Queen moves are the union of bishop-type and rook-type moves
-        const auto queenMovesHorizVert = generateRookMoves(square, piece);
-        const auto queenMovesDiag = generateBishopMoves(square, piece);
-        legalMoves.insert(std::begin(queenMovesHorizVert),
-                          std::end(queenMovesHorizVert));
-        legalMoves.insert(std::begin(queenMovesDiag), std::end(queenMovesDiag));
-        break;
-      }
-
-      case PieceType::King: {
-        const auto kingMoves = generateKingMoves(square, piece);
-        legalMoves.insert(std::begin(kingMoves), std::end(kingMoves));
-        break;
-      }
-
-      case PieceType::None:
-      default:
-        break;
+void Board2DArray::computeLegalMoves(MoveSet& moveSet,
+                                     std::vector<Coordinate> attackedSquares,
+                                     const Coordinate& square,
+                                     const Piece& piece) {
+  switch (piece.type) {
+    case PieceType::Pawn: {
+      const auto pawnMoves = generatePawnMoves(square, piece);
+      moveSet.insert(std::begin(pawnMoves), std::end(pawnMoves));
+      break;
     }
+
+    case PieceType::Knight: {
+      const auto knightMoves = generateKnightMoves(square, piece);
+      moveSet.insert(std::begin(knightMoves), std::end(knightMoves));
+      break;
+    }
+
+    case PieceType::Bishop: {
+      const auto bishopMoves = generateBishopMoves(square, piece);
+      moveSet.insert(std::begin(bishopMoves), std::end(bishopMoves));
+      break;
+    }
+
+    case PieceType::Rook: {
+      const auto rookMoves = generateRookMoves(square, piece);
+      moveSet.insert(std::begin(rookMoves), std::end(rookMoves));
+      break;
+    }
+
+    case PieceType::Queen: {
+      // Queen moves are the union of bishop-type and rook-type moves
+      const auto queenMovesHorizVert = generateRookMoves(square, piece);
+      const auto queenMovesDiag = generateBishopMoves(square, piece);
+      moveSet.insert(std::begin(queenMovesHorizVert),
+                     std::end(queenMovesHorizVert));
+      moveSet.insert(std::begin(queenMovesDiag), std::end(queenMovesDiag));
+      break;
+    }
+
+    case PieceType::King: {
+      auto kingMoves = generateKingMoves(square, piece);
+
+      std::cout << "Attacked Squares: ";
+      for (const auto& atSquare : attackedSquares) {
+        std::cout << atSquare.toAlgebraic() << "  ";
+      }
+      std::cout << "\n";
+
+      std::erase_if(kingMoves, [attackedSquares](const auto& move) -> bool {
+        return (std::find(attackedSquares.begin(), attackedSquares.end(),
+                          move.to)) != attackedSquares.end();
+      });
+
+      moveSet.insert(std::begin(kingMoves), std::end(kingMoves));
+
+      break;
+    }
+
+    case PieceType::None:
+    default:
+      break;
   }
 }
 
