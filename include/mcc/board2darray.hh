@@ -44,6 +44,7 @@ class Board2DArray {
   MoveSet generateBishopMoves(const Coordinate& square,
                               const Piece& piece) const;
   MoveSet generateRookMoves(const Coordinate& square, const Piece& piece) const;
+  MoveSet generateKingMoves(const Coordinate& square, const Piece& piece) const;
 
   bool squareBlockedByOwnPieceOrOutsideBoard(const Coordinate& targetSquare,
                                              const Piece& piece) const;

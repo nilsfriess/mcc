@@ -103,8 +103,6 @@ Piece Board2DArray::getPieceAt(const Coordinate& square) const {
 std::optional<Move> Board2DArray::makeMove(const Coordinate& from,
                                            const Coordinate& to) {
   Move move(from, to);
-  std::cout << "\nTrying to make move from " << from.toAlgebraic() << " to "
-            << to.toAlgebraic() << "\n";
 
   if (legalMoves.contains(move)) {
     // Move is legal, carry it out
@@ -113,7 +111,6 @@ std::optional<Move> Board2DArray::makeMove(const Coordinate& from,
     // Check if current move is en passant capture and then check if move allows
     // for en passant capture in the next move
     if (to == enPassantSquare) {
-      std::cout << "Move is en passant capture\n";
       // Move is an en passant capture
       setPieceAt({from.rank(), to.file()}, Piece(PieceType::None));
       move.type = MoveType::EnPassantCapture;
@@ -192,6 +189,8 @@ void Board2DArray::generateLegalMoves() {
       }
 
       case PieceType::King: {
+        const auto kingMoves = generateKingMoves(square, piece);
+        legalMoves.insert(std::begin(kingMoves), std::end(kingMoves));
         break;
       }
 
@@ -265,9 +264,6 @@ Board2DArray::MoveSet Board2DArray::generatePawnMoves(
 
   // En passant capture
   if (enPassantSquare) {
-    std::cout << "En passant square: " << enPassantSquare.value().toAlgebraic()
-              << ", captureRightSquare = " << captureRightSquare.toAlgebraic()
-              << "\n";
     if (enPassantSquare.value() == captureLeftSquare) {
       const Move move(square, captureLeftSquare);
       legalPawnMoves.insert(move);
@@ -327,11 +323,6 @@ Board2DArray::MoveSet Board2DArray::generateBishopMoves(
   {
     // first check up and left direction
     auto possibleSquare = square.above().left();
-    /* td::cout << "Move from " << square.toAlgebraic() << " to "
-               << possibleSquare.toAlgebraic() << " out of board or blocked? "
-               << squareBlockedByOwnPieceOrOutsideBoard(possibleSquare) <<
-       "\n";
-       */
     while (!squareBlockedByOwnPieceOrOutsideBoard(possibleSquare, piece)) {
       const auto targetPiece = getPieceAt(possibleSquare);
       auto move = Move{square, possibleSquare};
@@ -398,11 +389,6 @@ Board2DArray::MoveSet Board2DArray::generateRookMoves(
   {
     // first check up
     auto possibleSquare = square.above();
-    /* td::cout << "Move from " << square.toAlgebraic() << " to "
-               << possibleSquare.toAlgebraic() << " out of board or blocked? "
-               << squareBlockedByOwnPieceOrOutsideBoard(possibleSquare) <<
-       "\n";
-       */
     while (!squareBlockedByOwnPieceOrOutsideBoard(possibleSquare, piece)) {
       const auto targetPiece = getPieceAt(possibleSquare);
       auto move = Move{square, possibleSquare};
@@ -455,6 +441,25 @@ Board2DArray::MoveSet Board2DArray::generateRookMoves(
   }
 
   return rookMoves;
+}
+
+Board2DArray::MoveSet Board2DArray::generateKingMoves(
+    const Coordinate& square, const Piece& piece) const {
+  MoveSet kingMoves;
+
+  const std::vector<Coordinate> directions{
+      square.above(),        square.above().left(), square.above().right(),
+      square.right(),        square.left(),         square.below(),
+      square.below().left(), square.below().right()};
+
+  for (const auto& possibleSquare : directions) {
+    if (!squareBlockedByOwnPieceOrOutsideBoard(possibleSquare, piece)) {
+      const Move move{square, possibleSquare};
+      kingMoves.insert(move);
+    }
+  }
+
+  return kingMoves;
 }
 
 bool Board2DArray::squareBlockedByOwnPieceOrOutsideBoard(
