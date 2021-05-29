@@ -103,19 +103,28 @@ Piece Board2DArray::getPieceAt(const Coordinate& square) const {
 std::optional<Move> Board2DArray::makeMove(const Coordinate& from,
                                            const Coordinate& to) {
   Move move(from, to);
+  std::cout << "\nTrying to make move from " << from.toAlgebraic() << " to "
+            << to.toAlgebraic() << "\n";
 
   if (legalMoves.contains(move)) {
     // Move is legal, carry it out
     const auto& piece = getPieceAt(from);
 
-    // First check if move allows for en passant capture in the next move
+    // Check if current move is en passant capture and then check if move allows
+    // for en passant capture in the next move
+    if (to == enPassantSquare) {
+      std::cout << "Move is en passant capture\n";
+      // Move is an en passant capture
+      setPieceAt({from.rank(), to.file()}, Piece(PieceType::None));
+      move.type = MoveType::EnPassantCapture;
+    }
     const auto rankDistance = std::abs(static_cast<long int>(from.rank()) -
                                        static_cast<long int>(to.rank()));
     if (piece.type == PieceType::Pawn && rankDistance == 2) {
       if (activeColor == PieceColor::White) {
-        enPassantSquare = Coordinate(from.file(), to.below().rank());
+        enPassantSquare = to.below();
       } else {
-        enPassantSquare = Coordinate(from.file(), to.above().rank());
+        enPassantSquare = to.above();
       }
     } else {
       enPassantSquare = {};
@@ -125,12 +134,6 @@ std::optional<Move> Board2DArray::makeMove(const Coordinate& from,
 
     setPieceAt(from, Piece(PieceType::None));
     setPieceAt(to, piece);
-
-    if (to == enPassantSquare) {
-      // Move is an en passant capture
-      setPieceAt({from.rank(), to.file()}, Piece(PieceType::None));
-      move.type = MoveType::EnPassantCapture;
-    }
 
     if (activeColor == PieceColor::Black) {
       activeColor = PieceColor::White;
@@ -260,28 +263,19 @@ Board2DArray::MoveSet Board2DArray::generatePawnMoves(
     }
   }
 
-  // // En passant capture
-  // if (enPassantSquare) {
-  //   if (canEnPassant && enPassantSquare == captureLeftSquare &&
-  //       getPieceAt(enPassantSquare + direction * 8).color != pawn.color)
-  //       {
-  //     const Move move({rank(square), file(square)},
-  //                     {rank(captureLeftSquare),
-  //                     file(captureLeftSquare)});
-  //     legalPawnMoves.insert(move);
-  //   }
-  // }
-
-  //   // En passant captures
-  //   if (canEnPassant && enPassantSquare == captureRightSquare &&
-  //       getPieceAt(enPassantSquare + direction * 8).color != pawn.color)
-  //       {
-  //     const Move move({rank(square), file(square)},
-  //                     {rank(captureRightSquare),
-  //                     file(captureRightSquare)});
-  //     legalPawnMoves.insert(move);
-  //   }
-  // }
+  // En passant capture
+  if (enPassantSquare) {
+    std::cout << "En passant square: " << enPassantSquare.value().toAlgebraic()
+              << ", captureRightSquare = " << captureRightSquare.toAlgebraic()
+              << "\n";
+    if (enPassantSquare.value() == captureLeftSquare) {
+      const Move move(square, captureLeftSquare);
+      legalPawnMoves.insert(move);
+    } else if (enPassantSquare.value() == captureRightSquare) {
+      const Move move(square, captureRightSquare);
+      legalPawnMoves.insert(move);
+    }
+  }
 
   return legalPawnMoves;
 }
@@ -335,7 +329,8 @@ Board2DArray::MoveSet Board2DArray::generateBishopMoves(
     auto possibleSquare = square.above().left();
     /* td::cout << "Move from " << square.toAlgebraic() << " to "
                << possibleSquare.toAlgebraic() << " out of board or blocked? "
-               << squareBlockedByOwnPieceOrOutsideBoard(possibleSquare) << "\n";
+               << squareBlockedByOwnPieceOrOutsideBoard(possibleSquare) <<
+       "\n";
        */
     while (!squareBlockedByOwnPieceOrOutsideBoard(possibleSquare, piece)) {
       const auto targetPiece = getPieceAt(possibleSquare);
@@ -405,7 +400,8 @@ Board2DArray::MoveSet Board2DArray::generateRookMoves(
     auto possibleSquare = square.above();
     /* td::cout << "Move from " << square.toAlgebraic() << " to "
                << possibleSquare.toAlgebraic() << " out of board or blocked? "
-               << squareBlockedByOwnPieceOrOutsideBoard(possibleSquare) << "\n";
+               << squareBlockedByOwnPieceOrOutsideBoard(possibleSquare) <<
+       "\n";
        */
     while (!squareBlockedByOwnPieceOrOutsideBoard(possibleSquare, piece)) {
       const auto targetPiece = getPieceAt(possibleSquare);
