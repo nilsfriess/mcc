@@ -133,13 +133,12 @@ std::optional<Move> Board2DArray::makeMove(const Coordinate& from,
     setPieceAt(from, Piece(PieceType::None));
     setPieceAt(to, piece);
 
-    generateOpponentLegalMoves();
-
     if (activeColor == PieceColor::Black) {
       activeColor = PieceColor::White;
     } else
       activeColor = PieceColor::Black;
 
+    generateAttackedSquares();
     generateLegalMoves();  // Update the possible legal moves
 
     ++fullMoves;
@@ -156,50 +155,99 @@ void Board2DArray::generateLegalMoves() {
 
     if (piece.type == PieceType::None || piece.color != activeColor) continue;
 
-    std::vector<Coordinate> attackedSquares;
-    for (const auto& move : opponentLegalMoves)
-      attackedSquares.push_back(move.to);
-
-    computeLegalMoves(legalMoves, attackedSquares, square, piece);
+    computeLegalMoves(square, piece);
   }
 }
-void Board2DArray::generateOpponentLegalMoves() {
-  opponentLegalMoves.clear();
+void Board2DArray::generateAttackedSquares() {
+  attackedSquares.clear();
   for (size_t square = 0; square < 64; ++square) {
     const auto& piece = getPieceAt(square);
 
-    if (piece.type == PieceType::None || piece.color != activeColor) continue;
+    if (piece.type == PieceType::None || piece.color == activeColor) continue;
 
-    computeLegalMoves(opponentLegalMoves, {}, square, piece);
+    computeAttackedSquares(square, piece);
   }
 }
 
-void Board2DArray::computeLegalMoves(MoveSet& moveSet,
-                                     std::vector<Coordinate> attackedSquares,
-                                     const Coordinate& square,
+void Board2DArray::computeAttackedSquares(const Coordinate& square,
+                                          const Piece& piece) {
+  switch (piece.type) {
+    case PieceType::Pawn: {
+      const auto pawnSquares = generatePawnAttackedSquares(square, piece);
+      attackedSquares.insert(std::begin(pawnSquares), std::end(pawnSquares));
+      break;
+    }
+
+    case PieceType::Knight: {
+      const auto knightSquares = generateKnightAttackedSquares(square, piece);
+      attackedSquares.insert(std::begin(knightSquares),
+                             std::end(knightSquares));
+      break;
+    }
+
+    case PieceType::Bishop: {
+      const auto bishopSquares = generateBishopAttackedSquares(square, piece);
+      attackedSquares.insert(std::begin(bishopSquares),
+                             std::end(bishopSquares));
+      break;
+    }
+
+    case PieceType::Rook: {
+      const auto rookSquares = generateRookAttackedSquares(square, piece);
+      attackedSquares.insert(std::begin(rookSquares), std::end(rookSquares));
+      break;
+    }
+
+    case PieceType::Queen: {
+      // Queen moves are the union of bishop-type and rook-type moves
+      const auto queenSquaresHorizVert =
+          generateRookAttackedSquares(square, piece);
+      const auto queenSquaresDiag =
+          generateBishopAttackedSquares(square, piece);
+      attackedSquares.insert(std::begin(queenSquaresHorizVert),
+                             std::end(queenSquaresHorizVert));
+      attackedSquares.insert(std::begin(queenSquaresDiag),
+                             std::end(queenSquaresDiag));
+      break;
+    }
+
+    case PieceType::King: {
+      auto kingSquares = generateKingAttackedSquares(square, piece);
+
+      attackedSquares.insert(std::begin(kingSquares), std::end(kingSquares));
+      break;
+    }
+
+    case PieceType::None:
+    default:
+      break;
+  }
+}
+
+void Board2DArray::computeLegalMoves(const Coordinate& square,
                                      const Piece& piece) {
   switch (piece.type) {
     case PieceType::Pawn: {
       const auto pawnMoves = generatePawnMoves(square, piece);
-      moveSet.insert(std::begin(pawnMoves), std::end(pawnMoves));
+      legalMoves.insert(std::begin(pawnMoves), std::end(pawnMoves));
       break;
     }
 
     case PieceType::Knight: {
       const auto knightMoves = generateKnightMoves(square, piece);
-      moveSet.insert(std::begin(knightMoves), std::end(knightMoves));
+      legalMoves.insert(std::begin(knightMoves), std::end(knightMoves));
       break;
     }
 
     case PieceType::Bishop: {
       const auto bishopMoves = generateBishopMoves(square, piece);
-      moveSet.insert(std::begin(bishopMoves), std::end(bishopMoves));
+      legalMoves.insert(std::begin(bishopMoves), std::end(bishopMoves));
       break;
     }
 
     case PieceType::Rook: {
       const auto rookMoves = generateRookMoves(square, piece);
-      moveSet.insert(std::begin(rookMoves), std::end(rookMoves));
+      legalMoves.insert(std::begin(rookMoves), std::end(rookMoves));
       break;
     }
 
@@ -207,27 +255,21 @@ void Board2DArray::computeLegalMoves(MoveSet& moveSet,
       // Queen moves are the union of bishop-type and rook-type moves
       const auto queenMovesHorizVert = generateRookMoves(square, piece);
       const auto queenMovesDiag = generateBishopMoves(square, piece);
-      moveSet.insert(std::begin(queenMovesHorizVert),
-                     std::end(queenMovesHorizVert));
-      moveSet.insert(std::begin(queenMovesDiag), std::end(queenMovesDiag));
+      legalMoves.insert(std::begin(queenMovesHorizVert),
+                        std::end(queenMovesHorizVert));
+      legalMoves.insert(std::begin(queenMovesDiag), std::end(queenMovesDiag));
       break;
     }
 
     case PieceType::King: {
       auto kingMoves = generateKingMoves(square, piece);
 
-      std::cout << "Attacked Squares: ";
-      for (const auto& atSquare : attackedSquares) {
-        std::cout << atSquare.toAlgebraic() << "  ";
-      }
-      std::cout << "\n";
-
-      std::erase_if(kingMoves, [attackedSquares](const auto& move) -> bool {
-        return (std::find(attackedSquares.begin(), attackedSquares.end(),
-                          move.to)) != attackedSquares.end();
+      // remove kingMoves that would move king in check
+      std::erase_if(kingMoves, [this](const auto& move) -> bool {
+        return attackedSquares.contains(move.to);
       });
 
-      moveSet.insert(std::begin(kingMoves), std::end(kingMoves));
+      legalMoves.insert(std::begin(kingMoves), std::end(kingMoves));
 
       break;
     }
@@ -499,6 +541,132 @@ Board2DArray::MoveSet Board2DArray::generateKingMoves(
   return kingMoves;
 }
 
+Board2DArray::CoordinateSet Board2DArray::generatePawnAttackedSquares(
+    const Coordinate& square, const Piece& piece) const {
+  CoordinateSet pawnSquares = {};
+  if (piece.color == PieceColor::White) {
+    const auto attackSquareLeft = square.above().left();
+    const auto attackSquareRight = square.above().right();
+    if (!attackSquareLeft.isOutsideOfBoard())
+      pawnSquares.insert(attackSquareLeft);
+    if (!attackSquareRight.isOutsideOfBoard())
+      pawnSquares.insert(attackSquareRight);
+  } else {
+    const auto attackSquareLeft = square.below().left();
+    const auto attackSquareRight = square.below().right();
+    if (!attackSquareLeft.isOutsideOfBoard())
+      pawnSquares.insert(attackSquareLeft);
+    if (!attackSquareRight.isOutsideOfBoard())
+      pawnSquares.insert(attackSquareRight);
+  }
+  return pawnSquares;
+}
+
+Board2DArray::CoordinateSet Board2DArray::generateKnightAttackedSquares(
+    const Coordinate& square, const Piece& /*piece*/) const {
+  CoordinateSet knightSquares;
+
+  knightSquares.insert(square.above().above().left());
+  knightSquares.insert(square.above().left().left());
+  knightSquares.insert(square.above().above().right());
+  knightSquares.insert(square.above().right().right());
+  knightSquares.insert(square.below().below().left());
+  knightSquares.insert(square.below().left().left());
+  knightSquares.insert(square.below().below().right());
+  knightSquares.insert(square.below().right().right());
+
+  std::erase_if(knightSquares, [](const auto& attackSquare) {
+    return attackSquare.isOutsideOfBoard();
+  });
+
+  return knightSquares;
+}
+
+Board2DArray::CoordinateSet Board2DArray::generateBishopAttackedSquares(
+    const Coordinate& square, const Piece& piece) const {
+  CoordinateSet bishopSquares;
+
+  {
+    auto possibleSquare = square.above().left();
+    while (!possibleSquare.isOutsideOfBoard()) {
+      bishopSquares.insert(possibleSquare);
+
+      const auto targetPiece = getPieceAt(possibleSquare);
+      if (targetPiece.type != PieceType::None) {
+        if (targetPiece.color != piece.color &&
+            targetPiece.type == PieceType::King)
+          possibleSquare = possibleSquare.above().left();
+        bishopSquares.insert(possibleSquare);
+        break;
+      }
+      possibleSquare = possibleSquare.above().left();
+    }
+  }
+
+  {
+    auto possibleSquare = square.below().left();
+    while (!possibleSquare.isOutsideOfBoard()) {
+      bishopSquares.insert(possibleSquare);
+
+      const auto targetPiece = getPieceAt(possibleSquare);
+      if (targetPiece.type != PieceType::None) {
+        if (targetPiece.color != piece.color &&
+            targetPiece.type == PieceType::King)
+          possibleSquare = possibleSquare.below().left();
+        bishopSquares.insert(possibleSquare);
+        break;
+      }
+      possibleSquare = possibleSquare.below().left();
+    }
+  }
+
+  {
+    auto possibleSquare = square.above().right();
+    while (!possibleSquare.isOutsideOfBoard()) {
+      bishopSquares.insert(possibleSquare);
+
+      const auto targetPiece = getPieceAt(possibleSquare);
+      if (targetPiece.type != PieceType::None) {
+        if (targetPiece.color != piece.color &&
+            targetPiece.type == PieceType::King)
+          possibleSquare = possibleSquare.above().right();
+        bishopSquares.insert(possibleSquare);
+        break;
+      }
+      possibleSquare = possibleSquare.above().right();
+    }
+  }
+
+  {
+    auto possibleSquare = square.below().right();
+    while (!possibleSquare.isOutsideOfBoard()) {
+      bishopSquares.insert(possibleSquare);
+
+      const auto targetPiece = getPieceAt(possibleSquare);
+      if (targetPiece.type != PieceType::None) {
+        if (targetPiece.color != piece.color &&
+            targetPiece.type == PieceType::King)
+          possibleSquare = possibleSquare.below().right();
+        bishopSquares.insert(possibleSquare);
+        break;
+      }
+      possibleSquare = possibleSquare.below().right();
+    }
+  }
+
+  return bishopSquares;
+}
+
+Board2DArray::CoordinateSet Board2DArray::generateRookAttackedSquares(
+    const Coordinate& /*square*/, const Piece& /*piece*/) const {
+  return {};
+}
+
+Board2DArray::CoordinateSet Board2DArray::generateKingAttackedSquares(
+    const Coordinate& /*square*/, const Piece& /*piece*/) const {
+  return {};
+}
+
 bool Board2DArray::squareBlockedByOwnPieceOrOutsideBoard(
     const Coordinate& targetSquare, const Piece& piece) const {
   const auto targetPiece = getPieceAt(targetSquare);
@@ -514,17 +682,3 @@ bool Board2DArray::squareBlockedByOwnPieceOrOutsideBoard(
 }
 
 }  // namespace mcc
-
-/*// Check if move allows for possible en-passant capture
-    const auto rankDistance = std::abs(static_cast<long int>(move.from.rank()) -
-                                       static_cast<long int>(move.to.rank()));
-    if (piece.type == PieceType::Pawn && rankDistance == 2) {
-      canTakeEnPassant = true;
-      enPassantSquare.setFile(move.file());
-      if (activeColor == PieceColor::White)
-        enPassantSquare.setRank(move.from.rank() - 1);
-      else
-        enPassantSquare.setRank(move.from.rank() + 1);
-    } else {
-      canTakeEnPassant = false;
-    }*/

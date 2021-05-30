@@ -98,4 +98,14 @@ struct Coordinate {
     }
   }
 };
+
+struct coord_hash {
+  std::size_t operator()(const Coordinate& coord) const {
+    const auto h1 = std::hash<size_t>{}(coord.rank());
+    const auto h2 = std::hash<size_t>{}(coord.file());
+
+    return h1 ^ (h2 << 1);
+  }
+};
+
 }  // namespace mcc
