@@ -658,8 +658,78 @@ Board2DArray::CoordinateSet Board2DArray::generateBishopAttackedSquares(
 }
 
 Board2DArray::CoordinateSet Board2DArray::generateRookAttackedSquares(
-    const Coordinate& /*square*/, const Piece& /*piece*/) const {
-  return {};
+    const Coordinate& square, const Piece& piece) const {
+  CoordinateSet rookSquares;
+
+  {
+    auto possibleSquare = square.above();
+    while (!possibleSquare.isOutsideOfBoard()) {
+      rookSquares.insert(possibleSquare);
+
+      const auto targetPiece = getPieceAt(possibleSquare);
+      if (targetPiece.type != PieceType::None) {
+        if (targetPiece.color != piece.color &&
+            targetPiece.type == PieceType::King)
+          possibleSquare = possibleSquare.above();
+        rookSquares.insert(possibleSquare);
+        break;
+      }
+      possibleSquare = possibleSquare.above();
+    }
+  }
+
+  {
+    auto possibleSquare = square.below();
+    while (!possibleSquare.isOutsideOfBoard()) {
+      rookSquares.insert(possibleSquare);
+
+      const auto targetPiece = getPieceAt(possibleSquare);
+      if (targetPiece.type != PieceType::None) {
+        if (targetPiece.color != piece.color &&
+            targetPiece.type == PieceType::King)
+          possibleSquare = possibleSquare.below();
+        rookSquares.insert(possibleSquare);
+        break;
+      }
+      possibleSquare = possibleSquare.below();
+    }
+  }
+
+  {
+    auto possibleSquare = square.right();
+    while (!possibleSquare.isOutsideOfBoard()) {
+      rookSquares.insert(possibleSquare);
+
+      const auto targetPiece = getPieceAt(possibleSquare);
+      if (targetPiece.type != PieceType::None) {
+        if (targetPiece.color != piece.color &&
+            targetPiece.type == PieceType::King)
+          possibleSquare = possibleSquare.right();
+        rookSquares.insert(possibleSquare);
+        break;
+      }
+      possibleSquare = possibleSquare.right();
+    }
+  }
+
+  {
+    auto possibleSquare = square.left();
+    while (!possibleSquare.isOutsideOfBoard()) {
+      rookSquares.insert(possibleSquare);
+
+      const auto targetPiece = getPieceAt(possibleSquare);
+      if (targetPiece.type != PieceType::None) {
+        if (targetPiece.color != piece.color &&
+            targetPiece.type == PieceType::King)
+          possibleSquare = possibleSquare.left();
+        rookSquares.insert(possibleSquare);
+        break;
+      }
+      possibleSquare = possibleSquare.left();
+    }
+  }
+
+  return rookSquares;
 }
 
 Board2DArray::CoordinateSet Board2DArray::generateKingAttackedSquares(
