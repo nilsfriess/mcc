@@ -49,7 +49,7 @@ TEST_CASE("Constructor throws when passed invalid FEN", "[board") {
 
 TEST_CASE(
     "Given the initial position, there are exactly four legal knight moves",
-    "[board") {
+    "[board]") {
   Board<Board2DArray> board;
 
   const auto knight_f3 = Move{{"g1"}, {"f3"}};

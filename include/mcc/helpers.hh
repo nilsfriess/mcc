@@ -1,38 +1,22 @@
 #pragma once
 
-namespace mcc {
-static wchar_t fenToUnicode(char fen) {
-  switch (fen) {
-    case 'p':
-      return L'♟';
-    case 'P':
-      return L'♙';
+#include <algorithm>
+#include <array>
+#include <cmath>
+#include <cstdint>
 
-    case 'b':
-      return L'♝';
-    case 'B':
-      return L'♗';
-
-    case 'n':
-      return L'♞';
-    case 'N':
-      return L'♘';
-
-    case 'r':
-      return L'♜';
-    case 'R':
-      return L'♖';
-
-    case 'q':
-      return L'♛';
-    case 'Q':
-      return L'♕';
-
-    case 'k':
-      return L'♚';
-    case 'K':
-      return L'♔';
-  }
-  return ' ';
+template <int... indices> consteval uint64_t set_bits() {
+  return (... | (static_cast<uint64_t>(1) << indices));
 }
-}  // namespace mcc
+
+constexpr auto distance = [](int square1, int square2) {
+  int file1 = square1 & 7;
+  int rank1 = square1 >> 3;
+  int file2 = square2 & 7;
+  int rank2 = square2 >> 3;
+
+  auto rankDist = std::abs(rank2 - rank1);
+  auto fileDist = std::abs(file2 - file1);
+
+  return std::max(rankDist, fileDist);
+};
