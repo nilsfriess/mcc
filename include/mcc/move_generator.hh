@@ -20,41 +20,42 @@ public:
   move_generator(board *board) : m_board(board) {}
 
   std::vector<move> generate_pseudo_legal() const {
-    uint64_t occupied_by_opponent = m_board->get_occupied_by_opponent();
-    uint64_t occupied_by_own = m_board->get_occupied_by_own();
-    uint64_t occupied = occupied_by_own | occupied_by_opponent;
+    const uint64_t occupied_by_opponent = m_board->get_occupied_by_opponent();
+    const uint64_t occupied_by_own = m_board->get_occupied_by_own();
+    const uint64_t occupied = occupied_by_own | occupied_by_opponent;
 
-    auto active_colour = m_board->active_colour;
-    uint8_t direction = (active_colour == Colour::White) ? -1 : +1;
+    const auto active_colour = m_board->active_colour;
+    const uint8_t direction = (active_colour == Colour::White) ? -1 : +1;
     std::vector<move> moves;
 
     /*******************************************
      * Pawn moves                              *
      *******************************************/
+    // TODO: This whole part is quite inefficient
     auto pawns = m_board->pawns[active_colour];
     while (pawns) {
-      uint8_t from = __builtin_ctzl(pawns);
+      const uint8_t from = __builtin_ctzl(pawns);
 
       // Non-promotion moves
       if (((active_colour == Colour::White) && (from > 15)) ||
           (active_colour == Colour::Black) && (from < 48)) {
 
         // 1 step pawn moves
-        uint8_t to = from + direction * 8;
+        const uint8_t to = from + direction * 8;
         if (!(occupied & (1UL << to))) {
           // Field `to` is empty, add move to possible moves
-          moves.push_back(move{from, to, Piece::Pawn, active_colour});
+          moves.emplace_back(move{from, to, Piece::Pawn, active_colour});
         }
 
         // 2 step pawn moves
         // Check if pawn is still on initial field
         if ((active_colour == Colour::White) && (48 <= from && from <= 55) ||
             (active_colour == Colour::Black) && (8 <= from && from <= 15)) {
-          uint8_t to = from + direction * 16;
-          uint8_t between = from + direction * 8;
+          const uint8_t to = from + direction * 16;
+          const uint8_t between = from + direction * 8;
 
           if (!(occupied & (1UL << to)) && !(occupied & (1UL << between))) {
-            moves.push_back(move{from, to, Piece::Pawn, active_colour});
+            moves.emplace_back(move{from, to, Piece::Pawn, active_colour});
           }
         }
 
@@ -65,28 +66,28 @@ public:
       // Pawn captures
       if (active_colour == Colour::White) {
         uint8_t to = from - 9;
-        if (occupied_by_opponent & (1UL << to)) {
+        if (occupied_by_opponent & (1UL << to) && distance(from, to) == 1) {
           // Field `to` is occupied by opponent, we can capture
-          moves.push_back(
+          moves.emplace_back(
               move{from, to, Piece::Pawn, active_colour, move::Flags::Capture});
         }
         to = from - 7;
-        if (occupied_by_opponent & (1UL << to)) {
+        if (occupied_by_opponent & (1UL << to) && distance(from, to) == 1) {
           // Field `to` is occupied by opponent, we can capture
-          moves.push_back(
+          moves.emplace_back(
               move{from, to, Piece::Pawn, active_colour, move::Flags::Capture});
         }
       } else { // active_colour == Colour::Black
         uint8_t to = from + 9;
-        if (occupied_by_opponent & (1UL << to)) {
+        if (occupied_by_opponent & (1UL << to) && distance(from, to) == 1) {
           // Field `to` is occupied by opponent, we can capture
-          moves.push_back(
+          moves.emplace_back(
               move{from, to, Piece::Pawn, active_colour, move::Flags::Capture});
         }
         to = from + 7;
-        if (occupied_by_opponent & (1UL << to)) {
+        if (occupied_by_opponent & (1UL << to) && distance(from, to) == 1) {
           // Field `to` is occupied by opponent, we can capture
-          moves.push_back(
+          moves.emplace_back(
               move{from, to, Piece::Pawn, active_colour, move::Flags::Capture});
         }
       }
@@ -99,19 +100,19 @@ public:
      *******************************************/
     auto knights = m_board->knights[active_colour];
     while (knights) {
-      uint8_t from = __builtin_ctzl(knights);
+      const uint8_t from = __builtin_ctzl(knights);
 
       const auto knight_attacks = attack_board<Piece::Knight>[from];
       auto to_fields = knight_attacks & ~occupied_by_own;
 
       while (to_fields) {
-        uint8_t to = __builtin_ctzl(to_fields);
+        const uint8_t to = __builtin_ctzl(to_fields);
 
-        auto is_capture = ((occupied_by_opponent & (1UL << to)) > 0);
-        auto flag = static_cast<move::Flags>(is_capture);
+        const auto is_capture = ((occupied_by_opponent & (1UL << to)) > 0);
+        const auto flag = static_cast<move::Flags>(is_capture);
 
-        moves.push_back({from, static_cast<uint8_t>(to), Piece::Knight,
-                         active_colour, flag});
+        moves.emplace_back(move{from, static_cast<uint8_t>(to), Piece::Knight,
+                                active_colour, flag});
         to_fields &= ~(1UL << to);
       }
 
@@ -121,102 +122,126 @@ public:
     /*******************************************
      * King moves                              *
      *******************************************/
-    auto king = m_board->king[active_colour];
+    const auto king = m_board->king[active_colour];
     if (king) {
-      uint8_t from = __builtin_ctzl(king);
+      const uint8_t from = __builtin_ctzl(king);
 
       const auto king_attacks = attack_board<Piece::King>[from];
       auto to_fields = king_attacks & ~occupied_by_own;
 
       while (to_fields) {
-        uint8_t to = __builtin_ctzl(to_fields);
+        const uint8_t to = __builtin_ctzl(to_fields);
 
-        auto is_capture = ((occupied_by_opponent & (1UL << to)) > 0);
-        auto flag = static_cast<move::Flags>(is_capture);
+        const auto is_capture = ((occupied_by_opponent & (1UL << to)) > 0);
+        const auto flag = static_cast<move::Flags>(is_capture);
 
-        moves.push_back(
-            {from, static_cast<uint8_t>(to), Piece::King, active_colour, flag});
+        moves.emplace_back(move{from, static_cast<uint8_t>(to), Piece::King,
+                                active_colour, flag});
         to_fields &= ~(1UL << to);
       }
     }
 
     /*******************************************
-     * Bishop moves                            *
+     * Sliding piece moves                     *
      *******************************************/
-    auto bishops = m_board->bishops[active_colour];
-    while (bishops) {
-      uint8_t from = __builtin_ctzl(bishops);
-
-      const auto bishop_attacks = attack_board<Piece::Bishop>[from];
-
-      auto to_fields = bishop_attacks & ~occupied_by_own;
-
-      while (to_fields) {
-        uint8_t to = __builtin_ctzl(to_fields);
-
-        auto is_capture = ((occupied_by_opponent & (1UL << to)) > 0);
-        auto flag = static_cast<move::Flags>(is_capture);
-
-        moves.push_back({from, static_cast<uint8_t>(to), Piece::Bishop,
-                         active_colour, flag});
-        to_fields &= ~(1UL << to);
-      }
-      bishops &= ~(1UL << from);
-    }
-
-    /*******************************************
-     * Rook moves                              *
-     *******************************************/
-    auto rooks = m_board->rooks[active_colour];
-    while (rooks) {
-      uint8_t from = __builtin_ctzl(rooks);
-
-      const auto rook_attacks = attack_board<Piece::Rook>[from];
-
-      auto to_fields = rook_attacks & ~occupied_by_own;
-
-      while (to_fields) {
-        uint8_t to = __builtin_ctzl(to_fields);
-
-        auto is_capture = ((occupied_by_opponent & (1UL << to)) > 0);
-        auto flag = static_cast<move::Flags>(is_capture);
-
-        moves.push_back(
-            {from, static_cast<uint8_t>(to), Piece::Rook, active_colour, flag});
-        to_fields &= ~(1UL << to);
-      }
-      rooks &= ~(1UL << from);
-    }
-
-    /*******************************************
-     * Queen moves                             *
-     *******************************************/
-    auto queens = m_board->queen[active_colour];
-    while (queens) {
-      uint8_t from = __builtin_ctzl(queens);
-
-      const auto queen_attacks = attack_board<Piece::Queen>[from];
-
-      auto to_fields = queen_attacks & ~occupied_by_own;
-
-      while (to_fields) {
-        uint8_t to = __builtin_ctzl(to_fields);
-
-        auto is_capture = ((occupied_by_opponent & (1UL << to)) > 0);
-        auto flag = static_cast<move::Flags>(is_capture);
-
-        moves.push_back({from, static_cast<uint8_t>(to), Piece::Queen,
-                         active_colour, flag});
-        to_fields &= ~(1UL << to);
-      }
-      queens &= ~(1UL << from);
-    }
+    add_sliding_moves(moves, active_colour, occupied_by_own,
+                      occupied_by_opponent);
 
     return moves;
   }
 
+  inline void add_sliding_moves(std::vector<move> &moves, Colour active_colour,
+                                uint64_t occupied_by_own,
+                                uint64_t occupied_by_opponent) const {
+    auto bishops = m_board->bishops[active_colour];
+    while (bishops) {
+      const uint8_t from = __builtin_ctzl(bishops);
+      add_sliding_moves<Piece::Bishop, Direction::NorthEast>(
+          from, moves, active_colour, occupied_by_own, occupied_by_opponent);
+      add_sliding_moves<Piece::Bishop, Direction::NorthWest>(
+          from, moves, active_colour, occupied_by_own, occupied_by_opponent);
+      add_sliding_moves<Piece::Bishop, Direction::SouthEast>(
+          from, moves, active_colour, occupied_by_own, occupied_by_opponent);
+      add_sliding_moves<Piece::Bishop, Direction::SouthWest>(
+          from, moves, active_colour, occupied_by_own, occupied_by_opponent);
+
+      bishops &= ~(1UL << from);
+    }
+
+    auto queens = m_board->queen[active_colour];
+    while (queens) {
+      const uint8_t from = __builtin_ctzl(queens);
+      add_sliding_moves<Piece::Queen, Direction::East>(
+          from, moves, active_colour, occupied_by_own, occupied_by_opponent);
+      add_sliding_moves<Piece::Queen, Direction::West>(
+          from, moves, active_colour, occupied_by_own, occupied_by_opponent);
+      add_sliding_moves<Piece::Queen, Direction::South>(
+          from, moves, active_colour, occupied_by_own, occupied_by_opponent);
+      add_sliding_moves<Piece::Queen, Direction::North>(
+          from, moves, active_colour, occupied_by_own, occupied_by_opponent);
+      add_sliding_moves<Piece::Queen, Direction::NorthEast>(
+          from, moves, active_colour, occupied_by_own, occupied_by_opponent);
+      add_sliding_moves<Piece::Queen, Direction::NorthWest>(
+          from, moves, active_colour, occupied_by_own, occupied_by_opponent);
+      add_sliding_moves<Piece::Queen, Direction::SouthEast>(
+          from, moves, active_colour, occupied_by_own, occupied_by_opponent);
+      add_sliding_moves<Piece::Queen, Direction::SouthWest>(
+          from, moves, active_colour, occupied_by_own, occupied_by_opponent);
+
+      queens &= ~(1UL << from);
+    }
+
+    auto rooks = m_board->rooks[active_colour];
+    while (rooks) {
+      const uint8_t from = __builtin_ctzl(rooks);
+      add_sliding_moves<Piece::Rook, Direction::East>(
+          from, moves, active_colour, occupied_by_own, occupied_by_opponent);
+      add_sliding_moves<Piece::Rook, Direction::West>(
+          from, moves, active_colour, occupied_by_own, occupied_by_opponent);
+      add_sliding_moves<Piece::Rook, Direction::South>(
+          from, moves, active_colour, occupied_by_own, occupied_by_opponent);
+      add_sliding_moves<Piece::Rook, Direction::North>(
+          from, moves, active_colour, occupied_by_own, occupied_by_opponent);
+
+      rooks &= ~(1UL << from);
+    }
+  }
+
 private:
   board *m_board;
+
+  template <Piece piece, int direction>
+  inline void add_sliding_moves(uint8_t from, std::vector<move> &moves,
+                                Colour active_colour, uint64_t occupied_by_own,
+                                uint64_t occupied_by_opponent) const {
+
+    auto attacks = attack_board_sliding<direction>[from];
+    auto blocking = attacks & (occupied_by_opponent | occupied_by_own);
+    if (blocking) {
+      int first_blocking = 0;
+      if constexpr (direction < 0)
+        first_blocking = 63 - __builtin_clzl(blocking);
+      else
+        first_blocking = __builtin_ctzl(blocking);
+      attacks ^= attack_board_sliding<direction>[first_blocking];
+    }
+
+    while (attacks) {
+      const uint8_t to = __builtin_ctzl(attacks);
+
+      if ((1UL << to) & occupied_by_own) {
+        attacks &= ~(1UL << to);
+        continue;
+      }
+
+      const auto is_capture = ((occupied_by_opponent & (1UL << to)) > 0);
+      const auto flag = static_cast<move::Flags>(is_capture);
+
+      moves.emplace_back(
+          move{from, static_cast<uint8_t>(to), piece, active_colour, flag});
+      attacks &= ~(1UL << to);
+    }
+  }
 };
 
 }; // namespace mcc
