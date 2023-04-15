@@ -1,5 +1,6 @@
 #pragma once
 
+#include "mcc/attack_board.hh"
 #include "mcc/board.hh"
 #include "mcc/common.hh"
 #include "mcc/helpers.hh"
@@ -94,34 +95,121 @@ public:
     }
 
     /*******************************************
-     * Knight moves                              *
+     * Knight moves                            *
      *******************************************/
     auto knights = m_board->knights[active_colour];
     while (knights) {
       uint8_t from = __builtin_ctzl(knights);
 
-      std::array<int, 8> to_diffs = {-15, 15, -17, 17, -10, 10, -6, 6};
+      const auto knight_attacks = attack_board<Piece::Knight>[from];
+      auto to_fields = knight_attacks & ~occupied_by_own;
 
-      for (const auto &to_diff : to_diffs) {
-        int to = static_cast<int>(from) + to_diff;
-        if ((to < 0) or (to > 63))
-          continue;
+      while (to_fields) {
+        uint8_t to = __builtin_ctzl(to_fields);
 
-        if (distance(from, to) > 2)
-          continue;
+        auto is_capture = ((occupied_by_opponent & (1UL << to)) > 0);
+        auto flag = static_cast<move::Flags>(is_capture);
 
-        if (occupied_by_own & (1UL << static_cast<uint8_t>(to)))
-          continue;
-
-        if (occupied_by_opponent & (1UL << static_cast<uint8_t>(to)))
-          moves.push_back(move{from, static_cast<uint8_t>(to), Piece::Knight,
-                               active_colour, move::Flags::Capture});
-        else
-          moves.push_back(move{from, static_cast<uint8_t>(to), Piece::Knight,
-                               active_colour});
+        moves.push_back({from, static_cast<uint8_t>(to), Piece::Knight,
+                         active_colour, flag});
+        to_fields &= ~(1UL << to);
       }
 
       knights &= ~(1UL << from);
+    }
+
+    /*******************************************
+     * King moves                              *
+     *******************************************/
+    auto king = m_board->king[active_colour];
+    if (king) {
+      uint8_t from = __builtin_ctzl(king);
+
+      const auto king_attacks = attack_board<Piece::King>[from];
+      auto to_fields = king_attacks & ~occupied_by_own;
+
+      while (to_fields) {
+        uint8_t to = __builtin_ctzl(to_fields);
+
+        auto is_capture = ((occupied_by_opponent & (1UL << to)) > 0);
+        auto flag = static_cast<move::Flags>(is_capture);
+
+        moves.push_back(
+            {from, static_cast<uint8_t>(to), Piece::King, active_colour, flag});
+        to_fields &= ~(1UL << to);
+      }
+    }
+
+    /*******************************************
+     * Bishop moves                            *
+     *******************************************/
+    auto bishops = m_board->bishops[active_colour];
+    while (bishops) {
+      uint8_t from = __builtin_ctzl(bishops);
+
+      const auto bishop_attacks = attack_board<Piece::Bishop>[from];
+
+      auto to_fields = bishop_attacks & ~occupied_by_own;
+
+      while (to_fields) {
+        uint8_t to = __builtin_ctzl(to_fields);
+
+        auto is_capture = ((occupied_by_opponent & (1UL << to)) > 0);
+        auto flag = static_cast<move::Flags>(is_capture);
+
+        moves.push_back({from, static_cast<uint8_t>(to), Piece::Bishop,
+                         active_colour, flag});
+        to_fields &= ~(1UL << to);
+      }
+      bishops &= ~(1UL << from);
+    }
+
+    /*******************************************
+     * Rook moves                              *
+     *******************************************/
+    auto rooks = m_board->rooks[active_colour];
+    while (rooks) {
+      uint8_t from = __builtin_ctzl(rooks);
+
+      const auto rook_attacks = attack_board<Piece::Rook>[from];
+
+      auto to_fields = rook_attacks & ~occupied_by_own;
+
+      while (to_fields) {
+        uint8_t to = __builtin_ctzl(to_fields);
+
+        auto is_capture = ((occupied_by_opponent & (1UL << to)) > 0);
+        auto flag = static_cast<move::Flags>(is_capture);
+
+        moves.push_back(
+            {from, static_cast<uint8_t>(to), Piece::Rook, active_colour, flag});
+        to_fields &= ~(1UL << to);
+      }
+      rooks &= ~(1UL << from);
+    }
+
+    /*******************************************
+     * Queen moves                             *
+     *******************************************/
+    auto queens = m_board->queen[active_colour];
+    while (queens) {
+      uint8_t from = __builtin_ctzl(queens);
+
+      const auto queen_attacks = attack_board<Piece::Queen>[from];
+
+      auto to_fields = queen_attacks & ~occupied_by_own;
+
+      while (to_fields) {
+        uint8_t to = __builtin_ctzl(to_fields);
+
+        auto is_capture = ((occupied_by_opponent & (1UL << to)) > 0);
+        auto flag = static_cast<move::Flags>(is_capture);
+
+        moves.push_back({from, static_cast<uint8_t>(to), Piece::Queen,
+                         active_colour, flag});
+        to_fields &= ~(1UL << to);
+      }
+      queens &= ~(1UL << from);
     }
 
     return moves;
