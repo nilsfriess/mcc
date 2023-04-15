@@ -14,7 +14,7 @@ namespace mcc {
   follows:
 
   Upper 16 bits:
-  | Reserved (11 bits) | Colour (1 bit) | Piece (5 bits) |
+  | Reserved (11 bits) | Colour (1 bit) | Piece (6 bits) |
 
   Lower 16 bits:
   | From (6 bits) | To (6 bits) | Flags (4 bits) |
@@ -37,7 +37,7 @@ namespace mcc {
  */
 
 class move {
-  constexpr static uint32_t colour_shift = 21;
+  constexpr static uint32_t colour_shift = 22;
   constexpr static uint32_t piece_shift = 16;
   constexpr static uint32_t from_shift = 10;
   constexpr static uint32_t to_shift = 4;
@@ -64,12 +64,12 @@ public:
   }
 
   Piece get_piece() const {
-    constexpr auto piece_mask = set_bits<16, 17, 18, 19, 20>();
+    constexpr auto piece_mask = set_bits<16, 17, 18, 19, 20, 21>();
     return static_cast<Piece>((data & piece_mask) >> piece_shift);
   }
 
   Colour get_color() const {
-    constexpr auto colour_mask = set_bits<21>();
+    constexpr auto colour_mask = set_bits<22>();
     return static_cast<Colour>((data & colour_mask) >> colour_shift);
   }
 
