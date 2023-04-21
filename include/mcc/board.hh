@@ -3,6 +3,7 @@
 #include "mcc/common.hh"
 #include "mcc/coordinates.hh"
 #include "mcc/helpers.hh"
+#include "mcc/move.hh"
 
 #include <cstdint>
 #include <iostream>
@@ -78,7 +79,7 @@ struct board {
     if (fenFields.size() != 6)
       return false;
 
-    // Process active color field
+    // Process active colour field
     if (fenFields[1] == "w")
       active_colour = Colour::White;
     else
@@ -154,9 +155,71 @@ struct board {
     return true;
   }
 
-  uint64_t get_occupied(Colour color) const {
-    return pawns[color] | rooks[color] | knights[color] | bishops[color] |
-           queen[color] | king[color];
+  bool make_move(move m) {
+    auto piece = m.get_piece();
+    auto colour = m.get_colour();
+
+    uint64_t *board = nullptr;
+    switch (piece) {
+    case Piece::Pawn:
+      board = &(pawns[colour]);
+      break;
+    case Piece::Rook:
+      board = &(rooks[colour]);
+      break;
+    case Piece::Queen:
+      board = &(queen[colour]);
+      break;
+    case Piece::Bishop:
+      board = &(bishops[colour]);
+      break;
+    case Piece::Knight:
+      board = &(knights[colour]);
+      break;
+    case Piece::King:
+      board = &(king[colour]);
+      break;
+    };
+
+    set_bit(*board, m.get_to());
+    clear_bit(*board, m.get_from());
+
+    if (m.is_capture()) {
+      auto other_colour = get_other_colour(active_colour);
+
+      if (bit_is_set(pawns[other_colour], m.get_to())) {
+        clear_bit(pawns[other_colour], m.get_to());
+        return true;
+      }
+
+      if (bit_is_set(knights[other_colour], m.get_to())) {
+        clear_bit(knights[other_colour], m.get_to());
+        return true;
+      }
+
+      if (bit_is_set(bishops[other_colour], m.get_to())) {
+        clear_bit(bishops[other_colour], m.get_to());
+        return true;
+      }
+
+      if (bit_is_set(rooks[other_colour], m.get_to())) {
+        clear_bit(rooks[other_colour], m.get_to());
+        return true;
+      }
+
+      if (bit_is_set(queen[other_colour], m.get_to())) {
+        clear_bit(queen[other_colour], m.get_to());
+        return true;
+      }
+    }
+
+    // TODO: We are currently not checking if this is a valid move
+    return true;
+  }
+
+  uint64_t get_occupied(Colour colour) const {
+    return pawns[colour] | rooks[colour] | knights[colour] | bishops[colour] |
+           queen[colour] | king[colour];
   }
 
   uint64_t get_occupied_by_opponent() const {
@@ -230,31 +293,31 @@ struct board {
     return true;
   }
 
-  inline uint64_t get_bitboard(Piece piece, Colour color) const {
+  inline uint64_t get_bitboard(Piece piece, Colour colour) const {
     uint64_t bitboard = 0;
     switch (piece) {
     case Piece::Pawn:
-      bitboard = pawns[color];
+      bitboard = pawns[colour];
       break;
 
     case Piece::Rook:
-      bitboard = rooks[color];
+      bitboard = rooks[colour];
       break;
 
     case Piece::Knight:
-      bitboard = knights[color];
+      bitboard = knights[colour];
       break;
 
     case Piece::Bishop:
-      bitboard = bishops[color];
+      bitboard = bishops[colour];
       break;
 
     case Piece::Queen:
-      bitboard = queen[color];
+      bitboard = queen[colour];
       break;
 
     case Piece::King:
-      bitboard = king[color];
+      bitboard = king[colour];
       break;
 
     default:

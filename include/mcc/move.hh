@@ -44,7 +44,7 @@ class move {
   constexpr static uint32_t to_shift = 4;
 
 public:
-  enum class Flags : uint8_t { None = 0, Capture = 1, Promotion = 2 };
+  enum class Flags : uint8_t { None = 0, Capture = 2, Promotion = 4 };
 
   move(uint8_t from, uint8_t to, Piece piece, Colour colour,
        Flags flags = Flags::None)
@@ -69,7 +69,7 @@ public:
     return static_cast<Piece>((data & piece_mask) >> piece_shift);
   }
 
-  Colour get_color() const {
+  Colour get_colour() const {
     constexpr auto colour_mask = set_bits<22>();
     return static_cast<Colour>((data & colour_mask) >> colour_shift);
   }
@@ -78,11 +78,13 @@ public:
     return static_cast<uint8_t>(data & set_bits<0, 1, 2, 3>());
   }
 
+  bool is_capture() const { return (data & set_bits<1>()); }
+
   friend std::ostream &operator<<(std::ostream &out, const move &m) {
     const auto from_algebraic = from_64_to_algebraic(m.get_from());
     const auto to_algebraic = from_64_to_algebraic(m.get_to());
 
-    out << from_algebraic << " -> " << to_algebraic << " (" << m.get_color()
+    out << from_algebraic << " -> " << to_algebraic << " (" << m.get_colour()
         << " " << m.get_piece();
 
     if (m.get_flags() & static_cast<uint8_t>(Flags::Capture))

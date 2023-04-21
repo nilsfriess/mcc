@@ -1,6 +1,7 @@
 #pragma once
 
 #include <ostream>
+
 namespace mcc {
 
 enum Colour { White = 0, Black = 1 };
@@ -72,4 +73,16 @@ inline std::ostream &operator<<(std::ostream &out, mcc::Piece piece) {
 
   out << piece_to_string();
   return out;
+}
+
+inline void set_bit(uint64_t &val, uint8_t position) {
+  val |= (1UL << position);
+}
+
+inline void clear_bit(uint64_t &val, uint8_t position) {
+  val &= ~(1UL << position);
+}
+
+inline bool bit_is_set(uint64_t val, uint8_t position) {
+  return val & (1UL << position);
 }

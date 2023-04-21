@@ -17,4 +17,20 @@ int main(int argc, char *argv[]) {
   for (const auto &move : moves) {
     std::cout << move << "\n";
   }
+
+  engine.make_move(moves[2]);
+
+  moves = engine.generate_pseudo_legal();
+  std::cout << "\n\nFound " << moves.size() << " moves: \n";
+  for (const auto &move : moves) {
+    std::cout << move << "\n";
+  }
+
+  engine.make_move(moves[0]);
+
+  moves = engine.generate_pseudo_legal();
+  std::cout << "\n\nFound " << moves.size() << " moves: \n";
+  for (const auto &move : moves) {
+    std::cout << move << "\n";
+  }
 }

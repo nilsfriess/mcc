@@ -1,6 +1,8 @@
 #pragma once
 
 #include "mcc/board.hh"
+#include "mcc/common.hh"
+#include "mcc/move.hh"
 #include "mcc/move_generator.hh"
 
 namespace mcc {
@@ -15,6 +17,13 @@ public:
 
   std::vector<move> generate_pseudo_legal() const {
     return m_generator.generate_pseudo_legal();
+  }
+
+  bool make_move(move move) {
+    m_board.make_move(move);
+    m_board.active_colour = get_other_colour(m_board.active_colour);
+
+    return true;
   }
 };
 
