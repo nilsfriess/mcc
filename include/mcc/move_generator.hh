@@ -31,69 +31,130 @@ public:
     /*******************************************
      * Pawn moves                              *
      *******************************************/
-    // TODO: This whole part is quite inefficient
     auto pawns = m_board->pawns[active_colour];
     while (pawns) {
       const uint8_t from = __builtin_ctzl(pawns);
 
-      // Non-promotion moves
-      if (((active_colour == Colour::White) && (from > 15)) ||
-          (active_colour == Colour::Black) && (from < 48)) {
+      // Pawn pushes
+      const auto pawn_pushes = pawn_quiet_attack_board[active_colour][from];
+      auto to_fields = pawn_pushes & ~occupied;
 
-        // 1 step pawn moves
-        const uint8_t to = from + direction * 8;
-        if (!(occupied & (1UL << to))) {
-          // Field `to` is empty, add move to possible moves
-          moves.emplace_back(move{from, to, Piece::Pawn, active_colour});
-        }
+      /* If no piece occupies the square that we can reach in two steps,
+         we make an error here. We use here that a pawn can make two steps
+         forward if and only if it can make one step forward and the target
+         square is not occupied.
+       */
+      auto direction = (active_colour == White) ? -1 : 1;
+      const auto one_step_forward_field = from + direction * 8;
+      const auto two_step_forward_field = from + direction * 16;
+      const uint64_t one_step_allowed =
+          (to_fields & (1UL << one_step_forward_field)) > 0;
+      const uint64_t two_steps_allowed =
+          one_step_allowed && (to_fields & (1UL << two_step_forward_field));
+      to_fields = (to_fields & ~(1UL << two_step_forward_field) |
+                   (two_steps_allowed << two_step_forward_field));
 
-        // 2 step pawn moves
-        // Check if pawn is still on initial field
-        if ((active_colour == Colour::White) && (48 <= from && from <= 55) ||
-            (active_colour == Colour::Black) && (8 <= from && from <= 15)) {
-          const uint8_t to = from + direction * 16;
-          const uint8_t between = from + direction * 8;
+      while (to_fields) {
+        const uint8_t to = __builtin_ctzl(to_fields);
 
-          if (!(occupied & (1UL << to)) && !(occupied & (1UL << between))) {
-            moves.emplace_back(move{from, to, Piece::Pawn, active_colour});
-          }
-        }
+        const auto is_promotion = (active_colour == Colour::White)
+                                      ? (0 <= to && to <= 7)
+                                      : (56 <= to && to <= 63);
+        const auto promotion_flag =
+            is_promotion ? move::Flags::Promotion : move::Flags::None;
 
-      } else {
-        // TODO: Promotions
+        moves.emplace_back(
+            move{from, to, Piece::Pawn, active_colour, promotion_flag});
+        to_fields &= ~(1UL << to);
       }
 
       // Pawn captures
-      if (active_colour == Colour::White) {
-        uint8_t to = from - 9;
-        if (occupied_by_opponent & (1UL << to) && distance(from, to) == 1) {
-          // Field `to` is occupied by opponent, we can capture
-          moves.emplace_back(
-              move{from, to, Piece::Pawn, active_colour, move::Flags::Capture});
-        }
-        to = from - 7;
-        if (occupied_by_opponent & (1UL << to) && distance(from, to) == 1) {
-          // Field `to` is occupied by opponent, we can capture
-          moves.emplace_back(
-              move{from, to, Piece::Pawn, active_colour, move::Flags::Capture});
-        }
-      } else { // active_colour == Colour::Black
-        uint8_t to = from + 9;
-        if (occupied_by_opponent & (1UL << to) && distance(from, to) == 1) {
-          // Field `to` is occupied by opponent, we can capture
-          moves.emplace_back(
-              move{from, to, Piece::Pawn, active_colour, move::Flags::Capture});
-        }
-        to = from + 7;
-        if (occupied_by_opponent & (1UL << to) && distance(from, to) == 1) {
-          // Field `to` is occupied by opponent, we can capture
-          moves.emplace_back(
-              move{from, to, Piece::Pawn, active_colour, move::Flags::Capture});
-        }
+      const auto pawn_captures = pawn_capture_attack_board[active_colour][from];
+      to_fields = pawn_captures & occupied_by_opponent;
+      while (to_fields) {
+        const uint8_t to = __builtin_ctzl(to_fields);
+
+        const auto is_promotion = (active_colour == Colour::White)
+                                      ? (0 <= to && to <= 7)
+                                      : (56 <= to && to <= 63);
+        const auto promotion_flag =
+            is_promotion ? move::Flags::Promotion : move::Flags::None;
+
+        moves.emplace_back(move{from, to, Piece::Pawn, active_colour,
+                                move::Flags::Capture | promotion_flag});
+        to_fields &= ~(1UL << to);
       }
 
       pawns &= ~(1UL << from);
     }
+
+    // // TODO: This whole part is quite inefficient
+    // auto pawns = m_board->pawns[active_colour];
+    // while (pawns) {
+    //   const uint8_t from = __builtin_ctzl(pawns);
+
+    //   // Non-promotion moves
+    //   if (((active_colour == Colour::White) && (from > 15)) ||
+    //       (active_colour == Colour::Black) && (from < 48)) {
+
+    //     // 1 step pawn moves
+    //     const uint8_t to = from + direction * 8;
+    //     if (!(occupied & (1UL << to))) {
+    //       // Field `to` is empty, add move to possible moves
+    //       moves.emplace_back(move{from, to, Piece::Pawn, active_colour});
+    //     }
+
+    //     // 2 step pawn moves
+    //     // Check if pawn is still on initial field
+    //     if ((active_colour == Colour::White) && (48 <= from && from <= 55) ||
+    //         (active_colour == Colour::Black) && (8 <= from && from <= 15)) {
+    //       const uint8_t to = from + direction * 16;
+    //       const uint8_t between = from + direction * 8;
+
+    //       if (!(occupied & (1UL << to)) && !(occupied & (1UL << between))) {
+    //         moves.emplace_back(move{from, to, Piece::Pawn, active_colour});
+    //       }
+    //     }
+
+    //   } else {
+    //     // TODO: Promotions
+    //   }
+
+    //   // Pawn captures
+    //   if (active_colour == Colour::White) {
+    //     uint8_t to = from - 9;
+    //     if (occupied_by_opponent & (1UL << to) && distance(from, to) == 1) {
+    //       // Field `to` is occupied by opponent, we can capture
+    //       moves.emplace_back(
+    //           move{from, to, Piece::Pawn, active_colour,
+    //           move::Flags::Capture});
+    //     }
+    //     to = from - 7;
+    //     if (occupied_by_opponent & (1UL << to) && distance(from, to) == 1) {
+    //       // Field `to` is occupied by opponent, we can capture
+    //       moves.emplace_back(
+    //           move{from, to, Piece::Pawn, active_colour,
+    //           move::Flags::Capture});
+    //     }
+    //   } else { // active_colour == Colour::Black
+    //     uint8_t to = from + 9;
+    //     if (occupied_by_opponent & (1UL << to) && distance(from, to) == 1) {
+    //       // Field `to` is occupied by opponent, we can capture
+    //       moves.emplace_back(
+    //           move{from, to, Piece::Pawn, active_colour,
+    //           move::Flags::Capture});
+    //     }
+    //     to = from + 7;
+    //     if (occupied_by_opponent & (1UL << to) && distance(from, to) == 1) {
+    //       // Field `to` is occupied by opponent, we can capture
+    //       moves.emplace_back(
+    //           move{from, to, Piece::Pawn, active_colour,
+    //           move::Flags::Capture});
+    //     }
+    //   }
+
+    //   pawns &= ~(1UL << from);
+    // }
 
     /*******************************************
      * Knight moves                            *
@@ -102,7 +163,7 @@ public:
     while (knights) {
       const uint8_t from = __builtin_ctzl(knights);
 
-      const auto knight_attacks = attack_board<Piece::Knight>[from];
+      const auto knight_attacks = knight_attack_board[from];
       auto to_fields = knight_attacks & ~occupied_by_own;
 
       while (to_fields) {
@@ -126,7 +187,7 @@ public:
     if (king) {
       const uint8_t from = __builtin_ctzl(king);
 
-      const auto king_attacks = attack_board<Piece::King>[from];
+      const auto king_attacks = king_attack_board[from];
       auto to_fields = king_attacks & ~occupied_by_own;
 
       while (to_fields) {

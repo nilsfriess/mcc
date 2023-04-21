@@ -7,6 +7,7 @@
 #include <cstdint>
 #include <iostream>
 #include <ostream>
+#include <type_traits>
 
 namespace mcc {
 /*
@@ -86,6 +87,10 @@ public:
 
     if (m.get_flags() & static_cast<uint8_t>(Flags::Capture))
       out << ", Capture";
+
+    if (m.get_flags() & static_cast<uint8_t>(Flags::Promotion))
+      out << ", Promotion";
+
     out << ")";
 
     return out;
@@ -94,4 +99,15 @@ public:
 private:
   uint32_t data;
 };
+
+inline move::Flags operator|(move::Flags lhs, move::Flags rhs) {
+  using T = std::underlying_type_t<move::Flags>;
+  return static_cast<move::Flags>(static_cast<T>(lhs) | static_cast<T>(rhs));
+}
+
+inline move::Flags &operator|=(move::Flags &lhs, move::Flags rhs) {
+  lhs = lhs | rhs;
+  return lhs;
+}
+
 } // namespace mcc

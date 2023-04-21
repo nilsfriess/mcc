@@ -33,6 +33,24 @@ inline std::string from_64_to_algebraic(uint8_t field) {
   return std::string(1, file_as_char) + std::to_string(rank);
 }
 
+/* Convert from file and rank to number within 64 field bitboard.
+   Rank and file are both 0-indexed. That means:
+   - file == 0 corresponds to the a-file, file == 7 is the h-file.
+   - rank == 0 is the first file, rank == 7 is the last file.
+ */
+inline int from_algebraic_to_64(uint8_t file, uint8_t rank) {
+  return 8 * (7 - rank) + file;
+}
+
+inline int from_algebraic_to_64(std::string_view algebraic) {
+  const auto file = static_cast<std::size_t>(algebraic.at(0) - 'a');
+  const auto rank = static_cast<std::size_t>(algebraic.at(1) - '1');
+
+  return from_algebraic_to_64(file, rank);
+}
+
+inline bool is_inside_chessboard(int num) { return (num >= 0) && (num <= 63); }
+
 inline std::ostream &operator<<(std::ostream &out, mcc::Piece piece) {
   const auto piece_to_string = [piece]() {
     switch (piece) {

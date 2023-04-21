@@ -141,7 +141,7 @@ struct board {
         char curr = current_rank[position_in_fen];
         if (curr >= '1' && curr <= '8') {
           int squaresToSkip = curr - '0';
-          file += squaresToSkip;
+          file += squaresToSkip - 1;
         } else {
           // Set piece at current file and rank. Our rank is zero indexed, but
           // first rank in fen is rank 8

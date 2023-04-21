@@ -10,11 +10,70 @@
 
 namespace mcc {
 using lookup_table = std::array<uint64_t, 64>;
+using colour_lookup_table = lookup_table[2];
 
-template <Piece piece> static constexpr lookup_table attack_board = {};
+template <Colour colour>
+constexpr inline lookup_table pawn_quiet_attack_board_helper = []() {
+  lookup_table lut = {};
 
-template <>
-constexpr inline lookup_table attack_board<Piece::Knight> = []() {
+  constexpr int direction = (colour == Colour::White) ? -1 : 1;
+
+  constexpr int first_row_start = (colour == Colour::White) ? 48 : 8;
+  constexpr int first_row_end = (colour == Colour::White) ? 55 : 15;
+
+  const auto first_pawn = 8;
+  const auto last_pawn = 55;
+  for (int from = first_pawn; from <= last_pawn; ++from) {
+    const int to_one_step = from + direction * 8;
+    lut[from] |= 1UL << to_one_step;
+
+    if (first_row_start <= from && from <= first_row_end) {
+      const int to_two_steps = from + direction * 16;
+      lut[from] |= 1UL << to_two_steps;
+    }
+  }
+
+  return lut;
+}();
+
+template <Colour colour>
+constexpr inline lookup_table pawn_capture_attack_board_helper = []() {
+  lookup_table lut = {};
+
+  constexpr int direction = (colour == Colour::White) ? -1 : 1;
+
+  constexpr int left_row = (colour == Colour::White) ? 0 : 7;
+  constexpr int right_row = (colour == Colour::White) ? 7 : 0;
+
+  const auto first_pawn = 8;
+  const auto last_pawn = 55;
+  for (int from = first_pawn; from <= last_pawn; ++from) {
+    // Can only capture to the left if not on a-file
+    if ((from % 8 != left_row)) {
+      const int to_left = from + direction * 9;
+      lut[from] |= 1UL << to_left;
+    }
+
+    if ((from % 8 != right_row)) {
+      const int to_right = from + direction * 7;
+      lut[from] |= 1UL << to_right;
+    }
+  }
+
+  return lut;
+}();
+
+constexpr inline colour_lookup_table pawn_quiet_attack_board = {
+    pawn_quiet_attack_board_helper<Colour::White>,
+    pawn_quiet_attack_board_helper<Colour::Black>,
+};
+
+constexpr inline colour_lookup_table pawn_capture_attack_board = {
+    pawn_capture_attack_board_helper<Colour::White>,
+    pawn_capture_attack_board_helper<Colour::Black>,
+};
+
+constexpr inline lookup_table knight_attack_board = []() {
   lookup_table lut = {};
 
   constexpr std::array<int, 8> to_diffs = {-15, 15, -17, 17, -10, 10, -6, 6};
@@ -31,8 +90,7 @@ constexpr inline lookup_table attack_board<Piece::Knight> = []() {
   return lut;
 }();
 
-template <>
-constexpr inline lookup_table attack_board<Piece::King> = []() {
+constexpr inline lookup_table king_attack_board = []() {
   lookup_table lut = {};
 
   constexpr std::array<int, 8> to_diffs = {-9, -8, -7, -1, 1, 7, 8, 9};
@@ -85,17 +143,4 @@ constexpr auto attack_board_sliding = []() {
   }
   return lut;
 }();
-
-template <>
-constexpr inline lookup_table attack_board<Piece::Bishop> =
-    attack_board_sliding<-7, 7, -9, 9>;
-
-template <>
-constexpr inline lookup_table attack_board<Piece::Rook> =
-    attack_board_sliding<1, -1, 8, -8>;
-
-template <>
-constexpr inline lookup_table attack_board<Piece::Queen> =
-    attack_board_sliding<1, -1, 8, -8, -7, 7, -9, 9>;
-
 }; // namespace mcc
