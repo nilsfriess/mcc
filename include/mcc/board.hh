@@ -6,7 +6,9 @@
 
 #include <cstdint>
 #include <iostream>
+#include <sstream>
 #include <string_view>
+#include <vector>
 
 namespace mcc {
 
@@ -48,31 +50,108 @@ struct board {
   uint64_t queen[2] = {0};
   uint64_t king[2] = {0};
 
-  int en_passant_square = -1;
+  static constexpr int no_en_passant = -1;
+  int en_passant_square = no_en_passant;
   Colour active_colour;
 
-  board() { load_initial(); };
+  bool white_can_castle_kingside = false;
+  bool white_can_castle_queenside = false;
+  bool black_can_castle_kingside = false;
+  bool black_can_castle_queenside = false;
 
-  void load_initial() {
-    pawns[Colour::White] = set_bits<48, 49, 50, 51, 52, 53, 54, 55>();
-    pawns[Colour::Black] = set_bits<8, 9, 10, 11, 12, 13, 14, 15>();
+  unsigned int half_moves = 0;
+  unsigned int full_moves = 0;
 
-    rooks[Colour::White] = set_bits<56, 63>();
-    rooks[Colour::Black] = set_bits<0, 7>();
+  board(std::string fen =
+            "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1") {
+    load_from_fen(fen);
+  }
 
-    knights[Colour::White] = set_bits<27>();
-    knights[Colour::Black] = set_bits<1, 6>();
+  bool load_from_fen(std::string fen) {
+    std::vector<std::string> fenFields;
+    std::stringstream ss{fen};
+    std::string temp;
 
-    bishops[Colour::White] = set_bits<58, 61>();
-    bishops[Colour::Black] = set_bits<2, 5>();
+    while (ss >> temp)
+      fenFields.push_back(std::move(temp));
 
-    queen[Colour::White] = set_bits<59>();
-    queen[Colour::Black] = set_bits<3>();
+    if (fenFields.size() != 6)
+      return false;
 
-    king[Colour::White] = set_bits<60>();
-    king[Colour::Black] = set_bits<4>();
+    // Process active color field
+    if (fenFields[1] == "w")
+      active_colour = Colour::White;
+    else
+      active_colour = Colour::Black;
 
-    active_colour = Colour::White;
+    // Process castling rights
+    auto cnt = 0;
+    const auto &castlingRights = fenFields[2];
+    white_can_castle_kingside = false;
+    white_can_castle_queenside = false;
+    black_can_castle_kingside = false;
+    black_can_castle_queenside = false;
+
+    if (castlingRights[cnt] == 'K') {
+      white_can_castle_kingside = true;
+      cnt++;
+    }
+    if (castlingRights[cnt] == 'Q') {
+      white_can_castle_queenside = true;
+      cnt++;
+    }
+    if (castlingRights[cnt] == 'k') {
+      black_can_castle_kingside = true;
+      cnt++;
+    }
+    if (castlingRights[cnt] == 'q') {
+      black_can_castle_queenside = true;
+    }
+
+    // Process en passant square
+    const auto en_passant_square_fen = fenFields[3];
+    if (en_passant_square_fen == "-")
+      en_passant_square = no_en_passant;
+    else {
+      en_passant_square = from_algebraic_to_64(en_passant_square_fen);
+      if (!is_inside_chessboard(en_passant_square))
+        return false;
+    }
+
+    // Process half moves
+    const auto &halfMovesFEN = fenFields[4];
+    half_moves = std::stoi(halfMovesFEN);
+
+    // Process half moves
+    const auto &fullMovesFEN = fenFields[5];
+    full_moves = std::stoi(fullMovesFEN);
+
+    // Process piecesstd::vector<std::string> fenRanks;
+    std::vector<std::string> fenRanks;
+    ss = std::stringstream(fenFields[0]);
+    while (std::getline(ss, temp, '/'))
+      fenRanks.push_back(std::move(temp));
+
+    // Save position separately, since files can be skipped in FEN
+    size_t position_in_fen = 0;
+    for (size_t rank = 0; rank < 8; ++rank) {
+      const auto current_rank = fenRanks[rank];
+      position_in_fen = 0;
+      for (size_t file = 0; file < 8; ++file, ++position_in_fen) {
+        char curr = current_rank[position_in_fen];
+        if (curr >= '1' && curr <= '8') {
+          int squaresToSkip = curr - '0';
+          file += squaresToSkip;
+        } else {
+          // Set piece at current file and rank. Our rank is zero indexed, but
+          // first rank in fen is rank 8
+          if (!set_piece_at(file, 7 - rank, curr))
+            return false;
+        }
+      }
+    }
+
+    return true;
   }
 
   uint64_t get_occupied(Colour color) const {
@@ -88,6 +167,67 @@ struct board {
 
   inline bool is_field_occupied(uint64_t pieces, size_t field) const {
     return pieces & (static_cast<uint64_t>(1) << field);
+  }
+
+  bool set_piece_at(size_t file, size_t rank, char piece) {
+    auto field = from_algebraic_to_64(file, rank);
+    if (!is_inside_chessboard(field))
+      return false;
+
+    switch (piece) {
+    case 'p':
+      pawns[Colour::Black] |= (1UL << field);
+      break;
+
+    case 'P':
+      pawns[Colour::White] |= (1UL << field);
+      break;
+
+    case 'r':
+      rooks[Colour::Black] |= (1UL << field);
+      break;
+
+    case 'R':
+      rooks[Colour::White] |= (1UL << field);
+      break;
+
+    case 'n':
+      knights[Colour::Black] |= (1UL << field);
+      break;
+
+    case 'N':
+      knights[Colour::White] |= (1UL << field);
+      break;
+
+    case 'b':
+      bishops[Colour::Black] |= (1UL << field);
+      break;
+
+    case 'B':
+      bishops[Colour::White] |= (1UL << field);
+      break;
+
+    case 'q':
+      queen[Colour::Black] |= (1UL << field);
+      break;
+
+    case 'Q':
+      queen[Colour::White] |= (1UL << field);
+      break;
+
+    case 'k':
+      king[Colour::Black] |= (1UL << field);
+      break;
+
+    case 'K':
+      king[Colour::White] |= (1UL << field);
+      break;
+
+    default:
+      return false;
+    }
+
+    return true;
   }
 
   inline uint64_t get_bitboard(Piece piece, Colour color) const {

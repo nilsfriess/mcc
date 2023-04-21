@@ -6,8 +6,12 @@
 #include <mcc/common.hh>
 #include <mcc/move_generator.hh>
 
-int main() {
-  mcc::board board;
+int main(int argc, char *argv[]) {
+  std::string fen = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1";
+  if (argc == 2) {
+    fen = argv[1];
+  }
+  mcc::board board{fen};
   mcc::move_generator mg(&board);
 
   auto moves = mg.generate_pseudo_legal();
