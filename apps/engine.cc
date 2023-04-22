@@ -10,27 +10,6 @@ int main(int argc, char *argv[]) {
     fen = argv[1];
   }
 
-  mcc::mcc engine{fen};
-  auto moves = engine.generate_pseudo_legal();
-
-  std::cout << "Found " << moves.size() << " moves: \n";
-  for (const auto &move : moves) {
-    std::cout << move << "\n";
-  }
-
-  engine.make_move(moves[2]);
-
-  moves = engine.generate_pseudo_legal();
-  std::cout << "\n\nFound " << moves.size() << " moves: \n";
-  for (const auto &move : moves) {
-    std::cout << move << "\n";
-  }
-
-  engine.make_move(moves[0]);
-
-  moves = engine.generate_pseudo_legal();
-  std::cout << "\n\nFound " << moves.size() << " moves: \n";
-  for (const auto &move : moves) {
-    std::cout << move << "\n";
-  }
+  mcc::mcc engine{};
+  engine.start_uci();
 }

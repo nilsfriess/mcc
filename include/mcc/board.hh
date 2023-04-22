@@ -155,6 +155,52 @@ struct board {
     return true;
   }
 
+  bool make_move(std::string_view move) {
+    auto from = from_algebraic_to_64(move.substr(0, 2));
+    auto to = from_algebraic_to_64(move.substr(2, 2));
+
+    uint64_t *board = nullptr;
+    if (bit_is_set(pawns[active_colour], from))
+      board = &(pawns[active_colour]);
+    if (bit_is_set(knights[active_colour], from))
+      board = &(knights[active_colour]);
+    if (bit_is_set(bishops[active_colour], from))
+      board = &(bishops[active_colour]);
+    if (bit_is_set(rooks[active_colour], from))
+      board = &(rooks[active_colour]);
+    if (bit_is_set(queen[active_colour], from))
+      board = &(queen[active_colour]);
+    if (bit_is_set(king[active_colour], from))
+      board = &(king[active_colour]);
+
+    clear_bit(*board, from);
+    set_bit(*board, to);
+
+    if (bit_is_set(get_occupied_by_opponent(), to)) {
+      // Move iss a capture, remove piece of opponent
+      auto opponent_colour = get_other_colour(active_colour);
+      uint64_t *opponent_board = nullptr;
+      if (bit_is_set(pawns[opponent_colour], to))
+        opponent_board = &(pawns[opponent_colour]);
+      if (bit_is_set(knights[opponent_colour], to))
+        opponent_board = &(knights[opponent_colour]);
+      if (bit_is_set(bishops[opponent_colour], to))
+        opponent_board = &(bishops[opponent_colour]);
+      if (bit_is_set(rooks[opponent_colour], to))
+        opponent_board = &(rooks[opponent_colour]);
+      if (bit_is_set(queen[opponent_colour], to))
+        opponent_board = &(queen[opponent_colour]);
+      if (bit_is_set(king[opponent_colour], to))
+        opponent_board = &(king[opponent_colour]);
+
+      clear_bit(*opponent_board, to);
+    }
+
+    active_colour = get_other_colour(active_colour);
+
+    return true;
+  }
+
   bool make_move(move m) {
     auto piece = m.get_piece();
     auto colour = m.get_colour();
