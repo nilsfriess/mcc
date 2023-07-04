@@ -18,7 +18,7 @@ constexpr auto abs(T const &x) noexcept {
 }
 } // namespace mcc::detail
 
-constexpr auto distance = [](int square1, int square2) {
+constexpr auto distance = [](auto square1, auto square2) {
   const int file1 = square1 & 7;
   const int rank1 = square1 >> 3;
   const int file2 = square2 & 7;

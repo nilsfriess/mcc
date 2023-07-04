@@ -1,5 +1,6 @@
 #pragma once
 
+#include <cstdint>
 #include <ostream>
 
 namespace mcc {
@@ -26,7 +27,7 @@ inline std::ostream &operator<<(std::ostream &out, mcc::Colour colour) {
   return out;
 }
 
-inline std::string from_64_to_algebraic(uint8_t field) {
+inline std::string from_64_to_algebraic(std::uint8_t field) {
   const auto file = field % 8;
   const auto rank = 8 - field / 8;
 
@@ -39,7 +40,7 @@ inline std::string from_64_to_algebraic(uint8_t field) {
    - file == 0 corresponds to the a-file, file == 7 is the h-file.
    - rank == 0 is the first file, rank == 7 is the last file.
  */
-inline int from_algebraic_to_64(uint8_t file, uint8_t rank) {
+inline int from_algebraic_to_64(std::uint8_t file, std::uint8_t rank) {
   return 8 * (7 - rank) + file;
 }
 
@@ -75,14 +76,14 @@ inline std::ostream &operator<<(std::ostream &out, mcc::Piece piece) {
   return out;
 }
 
-inline void set_bit(uint64_t &val, uint8_t position) {
+inline void set_bit(std::uint64_t &val, std::uint8_t position) {
   val |= (1UL << position);
 }
 
-inline void clear_bit(uint64_t &val, uint8_t position) {
+inline void clear_bit(std::uint64_t &val, std::uint8_t position) {
   val &= ~(1UL << position);
 }
 
-inline bool bit_is_set(uint64_t val, uint8_t position) {
+inline bool bit_is_set(std::uint64_t val, std::uint8_t position) {
   return val & (1UL << position);
 }

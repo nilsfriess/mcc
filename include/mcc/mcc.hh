@@ -19,6 +19,8 @@ class mcc {
 public:
   mcc() : m_board{}, m_generator{&m_board} {}
 
+  //  mcc(const mcc &) = default;
+
   std::vector<move> generate_pseudo_legal() const {
     return m_generator.generate_pseudo_legal();
   }
@@ -30,98 +32,100 @@ public:
     return true;
   }
 
-  bool start_uci(std::string log_file = "log.txt") {
-    namespace fs = std::filesystem;
-    using namespace std::literals;
+  bool start_uci() { return true; }
 
-    auto log_file_path = fs::path("/home/nils/log/mcc") / log_file;
-    logger = std::ofstream{log_file_path};
-    log("\n\nStarting engine in UCI mode. Waiting for `uci` command...");
+  // bool start_uci(std::string log_file = "log.txt") {
+  //   namespace fs = std::filesystem;
+  //   using namespace std::literals;
 
-    std::string input;
-    std::cin >> input;
+  //   auto log_file_path = fs::path("/home/nils/log/mcc") / log_file;
+  //   logger = std::ofstream{log_file_path};
+  //   log("\n\nStarting engine in UCI mode. Waiting for `uci` command...");
 
-    if (input == "uci") {
-      log_command(input);
-      send_to_gui("id mcc");
-      send_to_gui("uciok");
-    }
+  //   std::string input;
+  //   std::cin >> input;
 
-    input = "";
-    while (input != "quit") {
-      std::getline(std::cin, input);
+  //   if (input == "uci") {
+  //     log_command(input);
+  //     send_to_gui("id mcc");
+  //     send_to_gui("uciok");
+  //   }
 
-      log_command(input);
+  //   input = "";
+  //   while (input != "quit") {
+  //     std::getline(std::cin, input);
 
-      if (input == "isready")
-        send_to_gui("readyok");
+  //     log_command(input);
 
-      if (input.starts_with("position")) {
-        // Extract moves
-        input = input.substr(9); // remove `position` from received command
-        if (input.starts_with("startpos")) {
-          m_board = board{};
+  //     if (input == "isready")
+  //       send_to_gui("readyok");
 
-          input = input.substr(9); // remove `startpos` from received command
-        } else { // If we do not receive `startpos`, then we are given a FEN
-          // Everything up to the word `moves` is part of the FEN
-          auto moves_begin = input.find("moves");
-          auto fen = input.substr(0, moves_begin - 1);
+  //     if (input.starts_with("position")) {
+  //       // Extract moves
+  //       input = input.substr(9); // remove `position` from received command
+  //       if (input.starts_with("startpos")) {
+  //         m_board = board{};
 
-          input = input.substr(moves_begin);
+  //         input = input.substr(9); // remove `startpos` from received command
+  //       } else { // If we do not receive `startpos`, then we are given a FEN
+  //         // Everything up to the word `moves` is part of the FEN
+  //         auto moves_begin = input.find("moves");
+  //         auto fen = input.substr(0, moves_begin - 1);
 
-          m_board = board{fen};
-        }
+  //         input = input.substr(moves_begin);
 
-        if (!input.starts_with("moves")) {
-          log("Received something that does not makes sense. Stopping.");
-          return false;
-        } else {
-          input = input.substr(6); // remove `moves` from received command
-          log("Now trying to perform moves: " + input);
+  //         m_board = board{fen};
+  //       }
 
-          std::stringstream ss{input};
-          std::vector<std::string> moves;
-          std::string tmp;
-          while (std::getline(ss, tmp, ' '))
-            moves.push_back(std::move(tmp));
+  //       if (!input.starts_with("moves")) {
+  //         log("Received something that does not makes sense. Stopping.");
+  //         return false;
+  //       } else {
+  //         input = input.substr(6); // remove `moves` from received command
+  //         log("Now trying to perform moves: " + input);
 
-          for (const auto &move : moves)
-            m_board.make_move(move);
-        }
-      }
+  //         std::stringstream ss{input};
+  //         std::vector<std::string> moves;
+  //         std::string tmp;
+  //         while (std::getline(ss, tmp, ' '))
+  //           moves.push_back(std::move(tmp));
 
-      if (input.starts_with("go")) {
-        auto moves = m_generator.generate_pseudo_legal();
+  //         for (const auto &move : moves)
+  //           m_board.make_move(move);
+  //       }
+  //     }
 
-        int rand_index = rand() % moves.size();
-        auto rand_move = moves[rand_index];
+  //     if (input.starts_with("go")) {
+  //       auto moves = m_generator.generate_pseudo_legal();
 
-        auto move_algebraic = from_64_to_algebraic(rand_move.get_from()) +
-                              from_64_to_algebraic(rand_move.get_to());
+  //       auto rand_index = static_cast<std::size_t>(rand()) % moves.size();
+  //       auto rand_move = moves[rand_index];
 
-        send_to_gui("bestmove " + move_algebraic);
-      }
-    }
+  //       auto move_algebraic = from_64_to_algebraic(rand_move.get_from()) +
+  //                             from_64_to_algebraic(rand_move.get_to());
 
-    log("Stopping engine.");
-    logger.close();
+  //       send_to_gui("bestmove " + move_algebraic);
+  //     }
+  //   }
 
-    return true;
-  }
+  //   log("Stopping engine.");
+  //   logger.close();
 
-private:
-  void send_to_gui(std::string_view command) {
-    std::cout << command << "\n";
-    log("Sending command to engine: " + std::string(command));
-  }
+  //   return true;
+  // }
 
-  void log(std::string_view message) { logger << message << std::endl; }
-  void log_command(std::string_view command) {
-    logger << "Received command: " << command << std::endl;
-  }
+  // private:
+  //   void send_to_gui(std::string_view command) {
+  //     std::cout << command << "\n";
+  //     log("Sending command to engine: " + std::string(command));
+  //   }
 
-  std::ofstream logger;
+  // void log(std::string_view message) { logger << message << std::endl; }
+  // void log_command(std::string_view command) {
+  //   logger << "Received command: " << command << std::endl;
+  // }
+
+  // std::ofstream logger;
 };
 
 }; // namespace mcc

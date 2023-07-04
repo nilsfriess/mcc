@@ -21,14 +21,14 @@ constexpr inline lookup_table pawn_quiet_attack_board_helper = []() {
   constexpr int first_row_start = (colour == Colour::White) ? 48 : 8;
   constexpr int first_row_end = (colour == Colour::White) ? 55 : 15;
 
-  const auto first_pawn = 8;
-  const auto last_pawn = 55;
-  for (int from = first_pawn; from <= last_pawn; ++from) {
-    const int to_one_step = from + direction * 8;
+  constexpr auto first_pawn = 8;
+  constexpr auto last_pawn = 55;
+  for (std::size_t from = first_pawn; from <= last_pawn; ++from) {
+    const int to_one_step = static_cast<int>(from) + direction * 8;
     lut[from] |= 1UL << to_one_step;
 
     if (first_row_start <= from && from <= first_row_end) {
-      const int to_two_steps = from + direction * 16;
+      const int to_two_steps = static_cast<int>(from) + direction * 16;
       lut[from] |= 1UL << to_two_steps;
     }
   }
@@ -45,17 +45,17 @@ constexpr inline lookup_table pawn_capture_attack_board_helper = []() {
   constexpr int left_row = (colour == Colour::White) ? 0 : 7;
   constexpr int right_row = (colour == Colour::White) ? 7 : 0;
 
-  const auto first_pawn = 8;
-  const auto last_pawn = 55;
-  for (int from = first_pawn; from <= last_pawn; ++from) {
+  constexpr auto first_pawn = 8;
+  constexpr auto last_pawn = 55;
+  for (std::size_t from = first_pawn; from <= last_pawn; ++from) {
     // Can only capture to the left if not on a-file
     if ((from % 8 != left_row)) {
-      const int to_left = from + direction * 9;
+      const int to_left = static_cast<int>(from) + direction * 9;
       lut[from] |= 1UL << to_left;
     }
 
     if ((from % 8 != right_row)) {
-      const int to_right = from + direction * 7;
+      const int to_right = static_cast<int>(from) + direction * 7;
       lut[from] |= 1UL << to_right;
     }
   }
@@ -77,9 +77,9 @@ constexpr inline lookup_table knight_attack_board = []() {
   lookup_table lut = {};
 
   constexpr std::array<int, 8> to_diffs = {-15, 15, -17, 17, -10, 10, -6, 6};
-  for (int from = 0; from < 64; ++from) {
+  for (std::size_t from = 0; from < 64; ++from) {
     for (const auto &to_diff : to_diffs) {
-      const int to = from + to_diff;
+      const int to = static_cast<int>(from) + to_diff;
       if ((to < 0) or (to > 63))
         continue;
       if (distance(from, to) > 2)
@@ -101,7 +101,7 @@ constexpr inline lookup_table king_attack_board = []() {
         continue;
       if (distance(from, to) > 1)
         continue;
-      lut[from] |= 1UL << to;
+      lut[static_cast<std::size_t>(from)] |= 1UL << to;
     }
   }
   return lut;
@@ -126,14 +126,14 @@ constexpr auto attack_board_sliding = []() {
     (
         [&] {
           int multiplier = 1;
-          int to = from + multiplier * directions;
-          int to_before = from;
+          auto to = from + multiplier * directions;
+          auto to_before = from;
 
           while (to >= 0 and to <= 63) {
             if (distance(to, to_before) > 1)
               break;
 
-            lut[from] |= 1UL << to;
+            lut[static_cast<std::size_t>(from)] |= 1UL << to;
             ++multiplier;
             to_before = to;
             to = from + multiplier * directions;

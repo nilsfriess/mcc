@@ -1,9 +1,8 @@
 #pragma once
 
-#include "mcc/common.hh"
-#include "mcc/coordinates.hh"
-#include "mcc/helpers.hh"
-#include "mcc/move.hh"
+#include "common.hh"
+#include "helpers.hh"
+#include "move.hh"
 
 #include <cstdint>
 #include <iostream>
@@ -86,7 +85,7 @@ struct board {
       active_colour = Colour::Black;
 
     // Process castling rights
-    auto cnt = 0;
+    std::size_t cnt = 0;
     const auto &castlingRights = fenFields[2];
     white_can_castle_kingside = false;
     white_can_castle_queenside = false;
@@ -121,11 +120,11 @@ struct board {
 
     // Process half moves
     const auto &halfMovesFEN = fenFields[4];
-    half_moves = std::stoi(halfMovesFEN);
+    half_moves = static_cast<unsigned int>(std::stoi(halfMovesFEN));
 
     // Process half moves
     const auto &fullMovesFEN = fenFields[5];
-    full_moves = std::stoi(fullMovesFEN);
+    full_moves = static_cast<unsigned int>(std::stoi(fullMovesFEN));
 
     // Process piecesstd::vector<std::string> fenRanks;
     std::vector<std::string> fenRanks;
@@ -142,7 +141,7 @@ struct board {
         char curr = current_rank[position_in_fen];
         if (curr >= '1' && curr <= '8') {
           int squaresToSkip = curr - '0';
-          file += squaresToSkip - 1;
+          file += static_cast<std::size_t>(squaresToSkip - 1);
         } else {
           // Set piece at current file and rank. Our rank is zero indexed, but
           // first rank in fen is rank 8

@@ -25,7 +25,7 @@ public:
     const uint64_t occupied = occupied_by_own | occupied_by_opponent;
 
     const auto active_colour = m_board->active_colour;
-    const uint8_t direction = (active_colour == Colour::White) ? -1 : +1;
+    const int direction = (active_colour == Colour::White) ? -1 : +1;
     std::vector<move> moves;
 
     /*******************************************
@@ -44,15 +44,16 @@ public:
          forward if and only if it can make one step forward and the target
          square is not occupied.
        */
-      auto direction = (active_colour == White) ? -1 : 1;
       const auto one_step_forward_field = from + direction * 8;
       const auto two_step_forward_field = from + direction * 16;
       const uint64_t one_step_allowed =
           (to_fields & (1UL << one_step_forward_field)) > 0;
       const uint64_t two_steps_allowed =
           one_step_allowed && (to_fields & (1UL << two_step_forward_field));
-      to_fields = (to_fields & ~(1UL << two_step_forward_field) |
-                   (two_steps_allowed << two_step_forward_field));
+      to_fields =
+          (to_fields &
+           ~(1UL << static_cast<unsigned int>(two_step_forward_field))) |
+          (two_steps_allowed << two_step_forward_field);
 
       while (to_fields) {
         const uint8_t to = __builtin_ctzl(to_fields);
@@ -216,7 +217,8 @@ private:
         first_blocking = 63 - __builtin_clzl(blocking);
       else
         first_blocking = __builtin_ctzl(blocking);
-      attacks ^= attack_board_sliding<direction>[first_blocking];
+      attacks ^= attack_board_sliding<direction>[static_cast<std::size_t>(
+          first_blocking)];
     }
 
     while (attacks) {
