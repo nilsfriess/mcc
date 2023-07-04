@@ -36,3 +36,5 @@ build
 
 *.log
 
+*.~undo-tree~
+.cache
