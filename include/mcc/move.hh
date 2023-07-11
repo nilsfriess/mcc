@@ -1,7 +1,8 @@
 #pragma once
 
 #include "mcc/common.hh"
-#include "mcc/helpers.hh"
+#include "mcc/common/colour.hh"
+#include "mcc/common/piece.hh"
 
 #include <bitset>
 #include <cstdint>
@@ -37,7 +38,7 @@ namespace mcc {
   0 00001 110100 100100 0000
  */
 
-class move {
+class Move {
   constexpr static uint32_t colour_shift = 22;
   constexpr static uint32_t piece_shift = 16;
   constexpr static uint32_t from_shift = 10;
@@ -46,7 +47,7 @@ class move {
 public:
   enum class Flags : uint8_t { None = 0, Capture = 2, Promotion = 4 };
 
-  move(uint8_t from, uint8_t to, Piece piece, Colour colour,
+  Move(uint8_t from, uint8_t to, Piece piece, Colour colour,
        Flags flags = Flags::None)
       : data{(static_cast<uint32_t>(colour) << colour_shift) |
              (static_cast<uint32_t>(piece) << piece_shift) |
@@ -80,7 +81,7 @@ public:
 
   bool is_capture() const { return (data & set_bits<1>()); }
 
-  friend std::ostream &operator<<(std::ostream &out, const move &m) {
+  friend std::ostream &operator<<(std::ostream &out, const Move &m) {
     const auto from_algebraic = from_64_to_algebraic(m.get_from());
     const auto to_algebraic = from_64_to_algebraic(m.get_to());
 
@@ -102,12 +103,12 @@ private:
   uint32_t data;
 };
 
-inline move::Flags operator|(move::Flags lhs, move::Flags rhs) {
-  using T = std::underlying_type_t<move::Flags>;
-  return static_cast<move::Flags>(static_cast<T>(lhs) | static_cast<T>(rhs));
+inline Move::Flags operator|(Move::Flags lhs, Move::Flags rhs) {
+  using T = std::underlying_type_t<Move::Flags>;
+  return static_cast<Move::Flags>(static_cast<T>(lhs) | static_cast<T>(rhs));
 }
 
-inline move::Flags &operator|=(move::Flags &lhs, move::Flags rhs) {
+inline Move::Flags &operator|=(Move::Flags &lhs, Move::Flags rhs) {
   lhs = lhs | rhs;
   return lhs;
 }

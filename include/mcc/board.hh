@@ -4,7 +4,9 @@
 #include "helpers.hh"
 #include "move.hh"
 
+#include <cassert>
 #include <cstdint>
+#include <exception>
 #include <iostream>
 #include <sstream>
 #include <string_view>
@@ -12,35 +14,7 @@
 
 namespace mcc {
 
-/*
-  Class that represents the board with its pieces.
-  Stores 6 arrays uint64_t piece[2], where piece[mcc::Colour::White]
-  represents the white pieces and piece[mcc::Colour::Black] represents
-  the black pieces.
 
-  The indexing works as follows
-                   BLACK
-    -----------------------------------------
- 8  | 0  | 1  | 2  |  3 | 4  | 5  | 6  | 7  |
-    -----------------------------------------
- 7  | 8  |  9 | 10 | 11 | 12 | 13 | 14 | 15 |
-    -----------------------------------------
- 6  | 16 | 17 | 18 | 19 | 20 | 21 | 22 | 23 |
-    -----------------------------------------
- 5  | 24 | 25 | 26 | 27 | 28 | 29 | 30 | 31 |
-    -----------------------------------------
- 4  | 32 | 33 | 34 | 35 | 36 | 37 | 38 | 39 |
-    -----------------------------------------
- 3  | 40 | 41 | 42 | 43 | 44 | 45 | 46 | 47 |
-    -----------------------------------------
- 2  | 48 | 49 | 50 | 51 | 52 | 53 | 54 | 55 |
-    -----------------------------------------
- 1  | 56 | 57 | 58 | 59 | 60 | 61 | 62 | 63 |
-    -----------------------------------------
-.      a    b    c    d    e    f    g    h
-                   WHITE
-
- */
 
 struct board {
   uint64_t pawns[2] = {0};
@@ -50,8 +24,8 @@ struct board {
   uint64_t queen[2] = {0};
   uint64_t king[2] = {0};
 
-  static constexpr int no_en_passant = -1;
-  int en_passant_square = no_en_passant;
+  static constexpr int NO_EN_PASSENT = -1;
+  int en_passant_square = NO_EN_PASSENT;
   Colour active_colour;
 
   bool white_can_castle_kingside = false;
@@ -111,7 +85,7 @@ struct board {
     // Process en passant square
     const auto en_passant_square_fen = fenFields[3];
     if (en_passant_square_fen == "-")
-      en_passant_square = no_en_passant;
+      en_passant_square = NO_EN_PASSENT;
     else {
       en_passant_square = from_algebraic_to_64(en_passant_square_fen);
       if (!is_inside_chessboard(en_passant_square))
@@ -126,7 +100,7 @@ struct board {
     const auto &fullMovesFEN = fenFields[5];
     full_moves = static_cast<unsigned int>(std::stoi(fullMovesFEN));
 
-    // Process piecesstd::vector<std::string> fenRanks;
+    // Process pieces
     std::vector<std::string> fenRanks;
     ss = std::stringstream(fenFields[0]);
     while (std::getline(ss, temp, '/'))
@@ -154,112 +128,166 @@ struct board {
     return true;
   }
 
-  bool make_move(std::string_view move) {
-    auto from = from_algebraic_to_64(move.substr(0, 2));
-    auto to = from_algebraic_to_64(move.substr(2, 2));
+  // bool make_move_from_algebraic(std::string_view move) {
+  //   auto from = from_algebraic_to_64(move.substr(0, 2));
+  //   auto to = from_algebraic_to_64(move.substr(2, 2));
 
-    uint64_t *board = nullptr;
-    if (bit_is_set(pawns[active_colour], from))
-      board = &(pawns[active_colour]);
-    if (bit_is_set(knights[active_colour], from))
-      board = &(knights[active_colour]);
-    if (bit_is_set(bishops[active_colour], from))
-      board = &(bishops[active_colour]);
-    if (bit_is_set(rooks[active_colour], from))
-      board = &(rooks[active_colour]);
-    if (bit_is_set(queen[active_colour], from))
-      board = &(queen[active_colour]);
-    if (bit_is_set(king[active_colour], from))
-      board = &(king[active_colour]);
+  //   uint64_t *board = nullptr;
+  //   if (bit_is_set(pawns[active_colour], from))
+  //     board = &(pawns[active_colour]);
+  //   if (bit_is_set(knights[active_colour], from))
+  //     board = &(knights[active_colour]);
+  //   if (bit_is_set(bishops[active_colour], from))
+  //     board = &(bishops[active_colour]);
+  //   if (bit_is_set(rooks[active_colour], from))
+  //     board = &(rooks[active_colour]);
+  //   if (bit_is_set(queen[active_colour], from))
+  //     board = &(queen[active_colour]);
+  //   if (bit_is_set(king[active_colour], from))
+  //     board = &(king[active_colour]);
 
-    clear_bit(*board, from);
-    set_bit(*board, to);
+  //   clear_bit(*board, from);
+  //   set_bit(*board, to);
 
-    if (bit_is_set(get_occupied_by_opponent(), to)) {
-      // Move iss a capture, remove piece of opponent
-      auto opponent_colour = get_other_colour(active_colour);
-      uint64_t *opponent_board = nullptr;
-      if (bit_is_set(pawns[opponent_colour], to))
-        opponent_board = &(pawns[opponent_colour]);
-      if (bit_is_set(knights[opponent_colour], to))
-        opponent_board = &(knights[opponent_colour]);
-      if (bit_is_set(bishops[opponent_colour], to))
-        opponent_board = &(bishops[opponent_colour]);
-      if (bit_is_set(rooks[opponent_colour], to))
-        opponent_board = &(rooks[opponent_colour]);
-      if (bit_is_set(queen[opponent_colour], to))
-        opponent_board = &(queen[opponent_colour]);
-      if (bit_is_set(king[opponent_colour], to))
-        opponent_board = &(king[opponent_colour]);
+  //   if (bit_is_set(get_occupied_by_opponent(), to)) {
+  //     // Move iss a capture, remove piece of opponent
+  //     auto opponent_colour = get_other_colour(active_colour);
+  //     uint64_t *opponent_board = nullptr;
+  //     if (bit_is_set(pawns[opponent_colour], to))
+  //       opponent_board = &(pawns[opponent_colour]);
+  //     if (bit_is_set(knights[opponent_colour], to))
+  //       opponent_board = &(knights[opponent_colour]);
+  //     if (bit_is_set(bishops[opponent_colour], to))
+  //       opponent_board = &(bishops[opponent_colour]);
+  //     if (bit_is_set(rooks[opponent_colour], to))
+  //       opponent_board = &(rooks[opponent_colour]);
+  //     if (bit_is_set(queen[opponent_colour], to))
+  //       opponent_board = &(queen[opponent_colour]);
+  //     if (bit_is_set(king[opponent_colour], to))
+  //       opponent_board = &(king[opponent_colour]);
 
-      clear_bit(*opponent_board, to);
-    }
+  //     clear_bit(*opponent_board, to);
+  //   }
 
-    active_colour = get_other_colour(active_colour);
+  //   active_colour = get_other_colour(active_colour);
 
-    return true;
-  }
+  //   return true;
+  // }
 
-  bool make_move(move m) {
+  // Make the given move. Does not check if the move is legal or even
+  // pseudolegal.
+  void make_move(move m) {
     auto piece = m.get_piece();
     auto colour = m.get_colour();
 
-    uint64_t *board = nullptr;
+    assert(colour == active_colour);
+
+    uint64_t *move_board = nullptr;
     switch (piece) {
     case Piece::Pawn:
-      board = &(pawns[colour]);
+      move_board = &(pawns[colour]);
       break;
     case Piece::Rook:
-      board = &(rooks[colour]);
+      move_board = &(rooks[colour]);
+
+      if (m.get_colour() == Colour::White) {
+        const bool is_kingside_rook = m.get_from() == 63;
+        const bool is_queenside_rook = m.get_from() == 56;
+
+        if (is_kingside_rook)
+          white_can_castle_kingside = false;
+        if (is_queenside_rook)
+          white_can_castle_queenside = false;
+      } else {
+        const bool is_kingside_rook = m.get_from() == 7;
+        const bool is_queenside_rook = m.get_from() == 0;
+
+        if (is_kingside_rook)
+          black_can_castle_kingside = false;
+        if (is_queenside_rook)
+          black_can_castle_queenside = false;
+      }
+
       break;
     case Piece::Queen:
-      board = &(queen[colour]);
+      move_board = &(queen[colour]);
       break;
     case Piece::Bishop:
-      board = &(bishops[colour]);
+      move_board = &(bishops[colour]);
       break;
     case Piece::Knight:
-      board = &(knights[colour]);
+      move_board = &(knights[colour]);
       break;
     case Piece::King:
-      board = &(king[colour]);
+      move_board = &(king[colour]);
+      if (active_colour == White) {
+        white_can_castle_kingside = false;
+        white_can_castle_queenside = false;
+      } else {
+        black_can_castle_kingside = false;
+        black_can_castle_queenside = false;
+      }
       break;
+    default:
+      __builtin_unreachable();
     };
 
-    set_bit(*board, m.get_to());
-    clear_bit(*board, m.get_from());
+    assert(move_board);
+
+    set_bit(move_board, m.get_to());
+    clear_bit(move_board, m.get_from());
 
     if (m.is_capture()) {
-      auto other_colour = get_other_colour(active_colour);
+      auto other_colour = get_other_colour(colour);
 
-      if (bit_is_set(pawns[other_colour], m.get_to())) {
-        clear_bit(pawns[other_colour], m.get_to());
-        return true;
-      }
+      if (bit_is_set(pawns[other_colour], m.get_to()))
+        clear_bit(&(pawns[other_colour]), m.get_to());
 
-      if (bit_is_set(knights[other_colour], m.get_to())) {
-        clear_bit(knights[other_colour], m.get_to());
-        return true;
-      }
+      if (bit_is_set(knights[other_colour], m.get_to()))
+        clear_bit(&(knights[other_colour]), m.get_to());
 
-      if (bit_is_set(bishops[other_colour], m.get_to())) {
-        clear_bit(bishops[other_colour], m.get_to());
-        return true;
-      }
+      if (bit_is_set(bishops[other_colour], m.get_to()))
+        clear_bit(&(bishops[other_colour]), m.get_to());
 
-      if (bit_is_set(rooks[other_colour], m.get_to())) {
-        clear_bit(rooks[other_colour], m.get_to());
-        return true;
-      }
+      if (bit_is_set(rooks[other_colour], m.get_to()))
+        clear_bit(&(rooks[other_colour]), m.get_to());
 
-      if (bit_is_set(queen[other_colour], m.get_to())) {
-        clear_bit(queen[other_colour], m.get_to());
-        return true;
+      if (bit_is_set(queen[other_colour], m.get_to()))
+        clear_bit(&(queen[other_colour]), m.get_to());
+    }
+
+    // Check if move is castling
+    if (m.get_piece() == Piece::King) {
+      // Check white castling
+      if ((colour == Colour::White) && (m.get_from() == 60)) {
+        if (m.get_to() == 62) {
+          // Kingside castling
+          assert(bit_is_set(rooks[colour], 63));
+          clear_bit(&(rooks[colour]), 63);
+          set_bit(&(rooks[colour]), 61);
+        } else if (m.get_to() == 58) {
+          // Queenside castling
+          assert(bit_is_set(rooks[colour], 56));
+          clear_bit(&(rooks[colour]), 56);
+          set_bit(&(rooks[colour]), 59);
+        }
+      } else if((colour == Colour::White) && (m.get_from() == 4)) {
+        if (m.get_to() == 6) {
+          // Kingside castling
+          assert(bit_is_set(rooks[colour], 7));
+          clear_bit(&(rooks[colour]), 7);
+          set_bit(&(rooks[colour]), 5);
+        } else if (m.get_to() == 2) {
+          // Queenside castling
+          assert(bit_is_set(rooks[colour], 0));
+          clear_bit(&(rooks[colour]), 0);
+          set_bit(&(rooks[colour]), 3);
+        }
+
       }
     }
 
-    // TODO: We are currently not checking if this is a valid move
-    return true;
+    active_colour = get_other_colour(colour);
   }
 
   uint64_t get_occupied(Colour colour) const {
@@ -273,100 +301,45 @@ struct board {
 
   uint64_t get_occupied_by_own() const { return get_occupied(active_colour); }
 
-  inline bool is_field_occupied(uint64_t pieces, size_t field) const {
+  uint64_t get_occupied() const {
+    return get_occupied_by_own() | get_occupied_by_opponent();
+  }
+
+  bool is_field_occupied(uint64_t pieces, size_t field) const {
     return pieces & (static_cast<uint64_t>(1) << field);
   }
 
-  bool set_piece_at(size_t file, size_t rank, char piece) {
-    auto field = from_algebraic_to_64(file, rank);
-    if (!is_inside_chessboard(field))
-      return false;
+  
 
-    switch (piece) {
-    case 'p':
-      pawns[Colour::Black] |= (1UL << field);
-      break;
-
-    case 'P':
-      pawns[Colour::White] |= (1UL << field);
-      break;
-
-    case 'r':
-      rooks[Colour::Black] |= (1UL << field);
-      break;
-
-    case 'R':
-      rooks[Colour::White] |= (1UL << field);
-      break;
-
-    case 'n':
-      knights[Colour::Black] |= (1UL << field);
-      break;
-
-    case 'N':
-      knights[Colour::White] |= (1UL << field);
-      break;
-
-    case 'b':
-      bishops[Colour::Black] |= (1UL << field);
-      break;
-
-    case 'B':
-      bishops[Colour::White] |= (1UL << field);
-      break;
-
-    case 'q':
-      queen[Colour::Black] |= (1UL << field);
-      break;
-
-    case 'Q':
-      queen[Colour::White] |= (1UL << field);
-      break;
-
-    case 'k':
-      king[Colour::Black] |= (1UL << field);
-      break;
-
-    case 'K':
-      king[Colour::White] |= (1UL << field);
-      break;
-
-    default:
-      return false;
-    }
-
-    return true;
-  }
-
-  inline uint64_t get_bitboard(Piece piece, Colour colour) const {
-    uint64_t bitboard = 0;
+  uint64_t *get_bitboard(Piece piece, Colour colour) {
+    uint64_t *bitboard;
     switch (piece) {
     case Piece::Pawn:
-      bitboard = pawns[colour];
+      bitboard = &(pawns[colour]);
       break;
 
     case Piece::Rook:
-      bitboard = rooks[colour];
+      bitboard = &(rooks[colour]);
       break;
 
     case Piece::Knight:
-      bitboard = knights[colour];
+      bitboard = &(knights[colour]);
       break;
 
     case Piece::Bishop:
-      bitboard = bishops[colour];
+      bitboard = &(bishops[colour]);
       break;
 
     case Piece::Queen:
-      bitboard = queen[colour];
+      bitboard = &(queen[colour]);
       break;
 
     case Piece::King:
-      bitboard = king[colour];
+      bitboard = &(king[colour]);
       break;
 
     default:
-      bitboard = 0;
+      __builtin_unreachable();
     }
 
     return bitboard;

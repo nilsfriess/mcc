@@ -1,6 +1,8 @@
 #pragma once
 
-#include "mcc/common.hh"
+#include "mcc/common/helpers.hh"
+#include "mcc/common/colour.hh"
+#include "mcc/common/piece.hh"
 #include "mcc/helpers.hh"
 
 #include <array>

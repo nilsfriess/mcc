@@ -17,21 +17,21 @@ namespace mcc {
 
 class move_generator {
 public:
-  move_generator(board *board) : m_board(board) {}
+  move_generator(board &board) : m_board(board) {}
 
   std::vector<move> generate_pseudo_legal() const {
-    const uint64_t occupied_by_opponent = m_board->get_occupied_by_opponent();
-    const uint64_t occupied_by_own = m_board->get_occupied_by_own();
-    const uint64_t occupied = occupied_by_own | occupied_by_opponent;
+    const uint64_t occupied_by_opponent = m_board.get_occupied_by_opponent();
+    const uint64_t occupied_by_own = m_board.get_occupied_by_own();
+    const uint64_t occupied = m_board.get_occupied();
 
-    const auto active_colour = m_board->active_colour;
+    const auto active_colour = m_board.active_colour;
     const int direction = (active_colour == Colour::White) ? -1 : +1;
     std::vector<move> moves;
 
     /*******************************************
      * Pawn moves                              *
      *******************************************/
-    auto pawns = m_board->pawns[active_colour];
+    auto pawns = m_board.pawns[active_colour];
     while (pawns) {
       const uint8_t from = __builtin_ctzl(pawns);
 
@@ -59,7 +59,7 @@ public:
         const uint8_t to = __builtin_ctzl(to_fields);
 
         const auto is_promotion = (active_colour == Colour::White)
-                                      ? (0 <= to && to <= 7)
+                                      ? (to <= 7)
                                       : (56 <= to && to <= 63);
         const auto promotion_flag =
             is_promotion ? move::Flags::Promotion : move::Flags::None;
@@ -76,7 +76,7 @@ public:
         const uint8_t to = __builtin_ctzl(to_fields);
 
         const auto is_promotion = (active_colour == Colour::White)
-                                      ? (0 <= to && to <= 7)
+                                      ? (to <= 7)
                                       : (56 <= to && to <= 63);
         const auto promotion_flag =
             is_promotion ? move::Flags::Promotion : move::Flags::None;
@@ -92,7 +92,7 @@ public:
     /*******************************************
      * Knight moves                            *
      *******************************************/
-    auto knights = m_board->knights[active_colour];
+    auto knights = m_board.knights[active_colour];
     while (knights) {
       const uint8_t from = __builtin_ctzl(knights);
 
@@ -116,7 +116,7 @@ public:
     /*******************************************
      * King moves                              *
      *******************************************/
-    const auto king = m_board->king[active_colour];
+    const auto king = m_board.king[active_colour];
     if (king) {
       const uint8_t from = __builtin_ctzl(king);
 
@@ -133,6 +133,45 @@ public:
                                 active_colour, flag});
         to_fields &= ~(1UL << to);
       }
+
+      // Generate castling moves
+      if (active_colour == Colour::White) {
+        if (m_board.white_can_castle_kingside) {
+          assert(from == 60);
+          // Check if fields between king and rook are empty
+          if (!(bit_is_set(occupied, 61) || bit_is_set(occupied, 62))) {
+            moves.emplace_back(
+                move{from, 62, Piece::King, active_colour, move::Flags::None});
+          }
+        }
+        if (m_board.white_can_castle_queenside) {
+          assert(from == 60);
+          // Check if fields between king and rook are empty
+          if (!(bit_is_set(occupied, 57) || bit_is_set(occupied, 58) ||
+                bit_is_set(occupied, 59))) {
+            moves.emplace_back(
+                move{from, 58, Piece::King, active_colour, move::Flags::None});
+          }
+        }
+      } else {
+        if (m_board.black_can_castle_kingside) {
+          assert(from == 4);
+          // Check if fields between king and rook are empty
+          if (!(bit_is_set(occupied, 5) || bit_is_set(occupied, 6))) {
+            moves.emplace_back(
+                move{from, 6, Piece::King, active_colour, move::Flags::None});
+          }
+        }
+        if (m_board.black_can_castle_queenside) {
+          assert(from == 4);
+          // Check if fields between king and rook are empty
+          if (!(bit_is_set(occupied, 1) || bit_is_set(occupied, 2) ||
+                bit_is_set(occupied, 3))) {
+            moves.emplace_back(
+                move{from, 2, Piece::King, active_colour, move::Flags::None});
+          }
+        }
+      }
     }
 
     /*******************************************
@@ -147,7 +186,7 @@ public:
   inline void add_sliding_moves(std::vector<move> &moves, Colour active_colour,
                                 uint64_t occupied_by_own,
                                 uint64_t occupied_by_opponent) const {
-    auto bishops = m_board->bishops[active_colour];
+    auto bishops = m_board.bishops[active_colour];
     while (bishops) {
       const uint8_t from = __builtin_ctzl(bishops);
       add_sliding_moves<Piece::Bishop, Direction::NorthEast>(
@@ -162,7 +201,7 @@ public:
       bishops &= ~(1UL << from);
     }
 
-    auto queens = m_board->queen[active_colour];
+    auto queens = m_board.queen[active_colour];
     while (queens) {
       const uint8_t from = __builtin_ctzl(queens);
       add_sliding_moves<Piece::Queen, Direction::East>(
@@ -185,7 +224,7 @@ public:
       queens &= ~(1UL << from);
     }
 
-    auto rooks = m_board->rooks[active_colour];
+    auto rooks = m_board.rooks[active_colour];
     while (rooks) {
       const uint8_t from = __builtin_ctzl(rooks);
       add_sliding_moves<Piece::Rook, Direction::East>(
@@ -202,7 +241,7 @@ public:
   }
 
 private:
-  board *m_board;
+  board &m_board;
 
   template <Piece piece, int direction>
   inline void add_sliding_moves(uint8_t from, std::vector<move> &moves,

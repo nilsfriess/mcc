@@ -1,31 +1,9 @@
 #pragma once
 
 #include <cstdint>
-#include <ostream>
+#include <string>
 
 namespace mcc {
-
-enum Colour { White = 0, Black = 1 };
-
-enum class Piece {
-  Pawn = 1,
-  Rook = 2,
-  Knight = 4,
-  Bishop = 8,
-  Queen = 16,
-  King = 32
-};
-
-inline Colour get_other_colour(Colour colour) {
-  return static_cast<Colour>(1 - colour);
-}
-
-} // namespace mcc
-
-inline std::ostream &operator<<(std::ostream &out, mcc::Colour colour) {
-  out << ((colour == mcc::Colour::White) ? "White" : "Black");
-  return out;
-}
 
 inline std::string from_64_to_algebraic(std::uint8_t field) {
   const auto file = field % 8;
@@ -38,7 +16,7 @@ inline std::string from_64_to_algebraic(std::uint8_t field) {
 /* Convert from file and rank to number within 64 field bitboard.
    Rank and file are both 0-indexed. That means:
    - file == 0 corresponds to the a-file, file == 7 is the h-file.
-   - rank == 0 is the first file, rank == 7 is the last file.
+   - rank == 0 is the rank 1, rank == 7 is the rank 8.
  */
 inline int from_algebraic_to_64(std::uint8_t file, std::uint8_t rank) {
   return 8 * (7 - rank) + file;
@@ -53,37 +31,32 @@ inline int from_algebraic_to_64(std::string_view algebraic) {
 
 inline bool is_inside_chessboard(int num) { return (num >= 0) && (num <= 63); }
 
-inline std::ostream &operator<<(std::ostream &out, mcc::Piece piece) {
-  const auto piece_to_string = [piece]() {
-    switch (piece) {
-    case mcc::Piece::Pawn:
-      return "Pawn";
-    case mcc::Piece::Rook:
-      return "Rook";
-    case mcc::Piece::Knight:
-      return "Knight";
-    case mcc::Piece::Bishop:
-      return "Bishop";
-    case mcc::Piece::Queen:
-      return "Queen";
-    case mcc::Piece::King:
-      return "King";
-    }
-    return "";
-  };
-
-  out << piece_to_string();
-  return out;
+inline void set_bit(std::uint64_t *val, std::uint8_t position) {
+  *val |= (1UL << position);
 }
 
-inline void set_bit(std::uint64_t &val, std::uint8_t position) {
-  val |= (1UL << position);
-}
-
-inline void clear_bit(std::uint64_t &val, std::uint8_t position) {
-  val &= ~(1UL << position);
+inline void clear_bit(std::uint64_t *val, std::uint8_t position) {
+  *val &= ~(1UL << position);
 }
 
 inline bool bit_is_set(std::uint64_t val, std::uint8_t position) {
   return val & (1UL << position);
 }
+
+template <int... indices> consteval uint64_t set_bits() {
+  return (... | (static_cast<uint64_t>(1) << indices));
+}
+
+constexpr auto distance = [](auto square1, auto square2) {
+  const int file1 = square1 & 7;
+  const int rank1 = square1 >> 3;
+  const int file2 = square2 & 7;
+  const int rank2 = square2 >> 3;
+
+  const auto rankDist = std::abs(rank2 - rank1);
+  const auto fileDist = std::abs(file2 - file1);
+
+  return std::max(rankDist, fileDist);
+};
+
+} // namespace mcc

@@ -1,131 +1,328 @@
 #pragma once
 
-#include "mcc/board.hh"
 #include "mcc/common.hh"
+#include "mcc/common/colour.hh"
+#include "mcc/common/piece.hh"
 #include "mcc/move.hh"
-#include "mcc/move_generator.hh"
 
-#include <filesystem>
-#include <fstream>
-#include <thread>
+#include <exception>
+#include <optional>
+#include <sstream>
+#include <string>
+#include <vector>
+
+/*
+  Board is represented by six arrays uint64_t piece[2], where
+  piece[mcc::Colour::White] represents the white pieces and
+  piece[mcc::Colour::Black] represents the black pieces.
+
+  The indexing works as follows
+                   BLACK
+    -----------------------------------------
+ 8  | 0  | 1  | 2  |  3 | 4  | 5  | 6  | 7  |
+    -----------------------------------------
+ 7  | 8  |  9 | 10 | 11 | 12 | 13 | 14 | 15 |
+    -----------------------------------------
+ 6  | 16 | 17 | 18 | 19 | 20 | 21 | 22 | 23 |
+    -----------------------------------------
+ 5  | 24 | 25 | 26 | 27 | 28 | 29 | 30 | 31 |
+    -----------------------------------------
+ 4  | 32 | 33 | 34 | 35 | 36 | 37 | 38 | 39 |
+    -----------------------------------------
+ 3  | 40 | 41 | 42 | 43 | 44 | 45 | 46 | 47 |
+    -----------------------------------------
+ 2  | 48 | 49 | 50 | 51 | 52 | 53 | 54 | 55 |
+    -----------------------------------------
+ 1  | 56 | 57 | 58 | 59 | 60 | 61 | 62 | 63 |
+    -----------------------------------------
+.      a    b    c    d    e    f    g    h
+                   WHITE
+
+ */
 
 namespace mcc {
+constexpr int NO_EN_PASSANT = -1;
 
-/* The actual engine class. */
 class mcc {
-  board m_board;
-  move_generator m_generator;
+  // Piece bitboards
+  // piece[Colour::White] -> White pieces
+  // piece[Colour::Black] -> Black pieces
+  uint64_t pawns[2] = {0};
+  uint64_t rooks[2] = {0};
+  uint64_t knights[2] = {0};
+  uint64_t bishops[2] = {0};
+  uint64_t queens[2] = {0};
+  uint64_t king[2] = {0};
+
+  int en_passant_square = NO_EN_PASSANT;
+  Colour active_colour = Colour::White;
+
+  bool white_can_castle_kingside = false;
+  bool white_can_castle_queenside = false;
+  bool black_can_castle_kingside = false;
+  bool black_can_castle_queenside = false;
+
+  unsigned int half_moves = 0;
+  unsigned int full_moves = 0;
 
 public:
-  mcc() : m_board{}, m_generator{&m_board} {}
-
-  //  mcc(const mcc &) = default;
-
-  std::vector<move> generate_pseudo_legal() const {
-    return m_generator.generate_pseudo_legal();
+  mcc(const std::string &fen =
+          "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1") {
+    load_from_fen(fen);
   }
 
-  bool make_move(move move) {
-    m_board.make_move(move);
-    m_board.active_colour = get_other_colour(m_board.active_colour);
+  std::optional<ColouredPiece> get_piece_at(std::size_t file,
+                                            std::size_t rank) const {
+    using enum Colour;
+    using enum Piece;
+
+    const auto position = from_algebraic_to_64(file, rank);
+    if (not is_inside_chessboard(position))
+      return {};
+
+    if (bit_is_set(pawns[White], position))
+      return ColouredPiece{Pawn, White};
+    if (bit_is_set(pawns[Black], position))
+      return ColouredPiece{Pawn, Black};
+
+    if (bit_is_set(knights[White], position))
+      return ColouredPiece{Knight, White};
+    if (bit_is_set(knights[Black], position))
+      return ColouredPiece{Knight, Black};
+
+    if (bit_is_set(bishops[White], position))
+      return ColouredPiece{Bishop, White};
+    if (bit_is_set(bishops[Black], position))
+      return ColouredPiece{Bishop, Black};
+
+    if (bit_is_set(rooks[White], position))
+      return ColouredPiece{Rook, White};
+    if (bit_is_set(rooks[Black], position))
+      return ColouredPiece{Rook, Black};
+
+    if (bit_is_set(king[White], position))
+      return ColouredPiece{King, White};
+    if (bit_is_set(king[Black], position))
+      return ColouredPiece{King, Black};
+
+    if (bit_is_set(queens[White], position))
+      return ColouredPiece{Queen, White};
+    if (bit_is_set(queens[Black], position))
+      return ColouredPiece{Queen, Black};
+
+    return {};
+  }
+
+  /* Performs the given move form position `from` to position `to`.
+     Throws an exception if either of the positions (or both) are outside the
+     board or if there is no piece at the position `from`. Otherwise does not
+     check for legality of the move.
+   */
+  void make_move(std::uint8_t from, std::uint8_t to) {
+    if (not(is_inside_chessboard(from) && is_inside_chessboard(to)))
+      throw std::invalid_argument(
+          "[mcc::make_move] At least one of the given positions is invalid.");
+
+    Colour colours[] = {Colour::White, Colour::Black};
+    uint64_t *bitboards[] = {pawns, knights, bishops, rooks, queens, king};
+
+    for (auto colour : colours) {
+      for (auto &bitboard : bitboards) {
+        auto &current_bitboard = bitboard[colour];
+
+        if (bit_is_set(current_bitboard, from)) {
+          clear_bit(&current_bitboard, from);
+          set_bit(&current_bitboard, to);
+
+          // Check if move is capture
+          for (auto &other_bitboards : bitboards) {
+            auto &other_bitboard = bitboard[get_other_colour(colour)];
+
+            if (bit_is_set(other_bitboard, to))
+              clear_bit(&other_bitboard, to);
+          }
+
+          return;
+        }
+      }
+    }
+
+    // If we reach this, the there was no piece at the position `from`
+    throw std::invalid_argument("[mcc::make_move] No piece at given positon.");
+  }
+
+private:
+  bool load_from_fen(const std::string &fen) {
+    std::vector<std::string> fenFields;
+    std::stringstream ss{fen};
+    std::string temp;
+
+    while (ss >> temp)
+      fenFields.push_back(std::move(temp));
+
+    if (fenFields.size() != 6)
+      return false;
+
+    // Process active colour field
+    if (fenFields[1] == "w")
+      active_colour = Colour::White;
+    else
+      active_colour = Colour::Black;
+
+    // Process castling rights
+    std::size_t cnt = 0;
+    const auto &castlingRights = fenFields[2];
+    white_can_castle_kingside = false;
+    white_can_castle_queenside = false;
+    black_can_castle_kingside = false;
+    black_can_castle_queenside = false;
+
+    if (castlingRights[cnt] == 'K') {
+      white_can_castle_kingside = true;
+      cnt++;
+    }
+    if (castlingRights[cnt] == 'Q') {
+      white_can_castle_queenside = true;
+      cnt++;
+    }
+    if (castlingRights[cnt] == 'k') {
+      black_can_castle_kingside = true;
+      cnt++;
+    }
+    if (castlingRights[cnt] == 'q') {
+      black_can_castle_queenside = true;
+    }
+
+    // Process en passant square
+    const auto en_passant_square_fen = fenFields[3];
+    if (en_passant_square_fen == "-")
+      en_passant_square = NO_EN_PASSANT;
+    else {
+      en_passant_square = from_algebraic_to_64(en_passant_square_fen);
+      if (!is_inside_chessboard(en_passant_square))
+        return false;
+    }
+
+    // Process half moves
+    const auto &halfMovesFEN = fenFields[4];
+    half_moves = static_cast<unsigned int>(std::stoi(halfMovesFEN));
+
+    // Process half moves
+    const auto &fullMovesFEN = fenFields[5];
+    full_moves = static_cast<unsigned int>(std::stoi(fullMovesFEN));
+
+    // Process pieces
+    std::vector<std::string> fenRanks;
+    ss = std::stringstream(fenFields[0]);
+    while (std::getline(ss, temp, '/'))
+      fenRanks.push_back(std::move(temp));
+
+    // Save position separately, since files can be skipped in FEN
+    size_t position_in_fen = 0;
+    for (size_t rank = 0; rank < 8; ++rank) {
+      const auto current_rank = fenRanks[rank];
+      position_in_fen = 0;
+      for (size_t file = 0; file < 8; ++file, ++position_in_fen) {
+        char curr = current_rank[position_in_fen];
+        if (curr >= '1' && curr <= '8') {
+          int squaresToSkip = curr - '0';
+          file += static_cast<std::size_t>(squaresToSkip - 1);
+        } else {
+          // Set piece at current file and rank. Our rank is zero indexed, but
+          // first rank in fen is rank 8
+          if (!set_piece_at(file, 7 - rank, curr))
+            return false;
+        }
+      }
+    }
 
     return true;
   }
 
-  bool start_uci() { return true; }
+  bool set_piece_at(size_t file, size_t rank, char piece) {
+    auto field = from_algebraic_to_64(file, rank);
+    if (!is_inside_chessboard(field))
+      return false;
 
-  // bool start_uci(std::string log_file = "log.txt") {
-  //   namespace fs = std::filesystem;
-  //   using namespace std::literals;
+    switch (piece) {
+    case 'p':
+      pawns[Colour::Black] |= (1UL << field);
+      break;
 
-  //   auto log_file_path = fs::path("/home/nils/log/mcc") / log_file;
-  //   logger = std::ofstream{log_file_path};
-  //   log("\n\nStarting engine in UCI mode. Waiting for `uci` command...");
+    case 'P':
+      pawns[Colour::White] |= (1UL << field);
+      break;
 
-  //   std::string input;
-  //   std::cin >> input;
+    case 'r':
+      rooks[Colour::Black] |= (1UL << field);
+      break;
 
-  //   if (input == "uci") {
-  //     log_command(input);
-  //     send_to_gui("id mcc");
-  //     send_to_gui("uciok");
-  //   }
+    case 'R':
+      rooks[Colour::White] |= (1UL << field);
+      break;
 
-  //   input = "";
-  //   while (input != "quit") {
-  //     std::getline(std::cin, input);
+    case 'n':
+      knights[Colour::Black] |= (1UL << field);
+      break;
 
-  //     log_command(input);
+    case 'N':
+      knights[Colour::White] |= (1UL << field);
+      break;
 
-  //     if (input == "isready")
-  //       send_to_gui("readyok");
+    case 'b':
+      bishops[Colour::Black] |= (1UL << field);
+      break;
 
-  //     if (input.starts_with("position")) {
-  //       // Extract moves
-  //       input = input.substr(9); // remove `position` from received command
-  //       if (input.starts_with("startpos")) {
-  //         m_board = board{};
+    case 'B':
+      bishops[Colour::White] |= (1UL << field);
+      break;
 
-  //         input = input.substr(9); // remove `startpos` from received command
-  //       } else { // If we do not receive `startpos`, then we are given a FEN
-  //         // Everything up to the word `moves` is part of the FEN
-  //         auto moves_begin = input.find("moves");
-  //         auto fen = input.substr(0, moves_begin - 1);
+    case 'q':
+      queens[Colour::Black] |= (1UL << field);
+      break;
 
-  //         input = input.substr(moves_begin);
+    case 'Q':
+      queens[Colour::White] |= (1UL << field);
+      break;
 
-  //         m_board = board{fen};
-  //       }
+    case 'k':
+      king[Colour::Black] |= (1UL << field);
+      break;
 
-  //       if (!input.starts_with("moves")) {
-  //         log("Received something that does not makes sense. Stopping.");
-  //         return false;
-  //       } else {
-  //         input = input.substr(6); // remove `moves` from received command
-  //         log("Now trying to perform moves: " + input);
+    case 'K':
+      king[Colour::White] |= (1UL << field);
+      break;
 
-  //         std::stringstream ss{input};
-  //         std::vector<std::string> moves;
-  //         std::string tmp;
-  //         while (std::getline(ss, tmp, ' '))
-  //           moves.push_back(std::move(tmp));
+    default:
+      return false;
+    }
 
-  //         for (const auto &move : moves)
-  //           m_board.make_move(move);
-  //       }
-  //     }
-
-  //     if (input.starts_with("go")) {
-  //       auto moves = m_generator.generate_pseudo_legal();
-
-  //       auto rand_index = static_cast<std::size_t>(rand()) % moves.size();
-  //       auto rand_move = moves[rand_index];
-
-  //       auto move_algebraic = from_64_to_algebraic(rand_move.get_from()) +
-  //                             from_64_to_algebraic(rand_move.get_to());
-
-  //       send_to_gui("bestmove " + move_algebraic);
-  //     }
-  //   }
-
-  //   log("Stopping engine.");
-  //   logger.close();
-
-  //   return true;
-  // }
-
-  // private:
-  //   void send_to_gui(std::string_view command) {
-  //     std::cout << command << "\n";
-  //     log("Sending command to engine: " + std::string(command));
-  //   }
-
-  // void log(std::string_view message) { logger << message << std::endl; }
-  // void log_command(std::string_view command) {
-  //   logger << "Received command: " << command << std::endl;
-  // }
-
-  // std::ofstream logger;
+    return true;
+  }
 };
 
 }; // namespace mcc
+
+inline std::ostream &operator<<(std::ostream &out, const mcc::mcc &board) {
+  out << "    ---------------------------------\n";
+  for (std::size_t i = 0; i < 8; ++i) {
+    auto rank = 7 - i;
+    out << (rank + 1) << " ";
+    out << " "
+        << " | ";
+    for (std::size_t file = 0; file < 8; ++file) {
+      if (auto coloured_piece = board.get_piece_at(file, rank)) {
+        out << mcc::piece_to_unicode(coloured_piece.value());
+        out << " | ";
+      } else {
+        out << " "
+            << " | ";
+      }
+    }
+    out << "\n    ---------------------------------";
+    out << "\n";
+  }
+  out << "      a   b   c   d   e   f   g   h\n";
+
+  return out;
+}
