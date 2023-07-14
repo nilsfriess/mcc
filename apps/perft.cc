@@ -41,19 +41,8 @@
 // }
 
 int main() {
-  mcc::mcc engine;
-  std::cout << engine << "\n";
-  
-  auto from = mcc::from_algebraic_to_64("e2");
-  auto to = mcc::from_algebraic_to_64("e4");
-  engine.make_move(from, to);
-  
+  mcc::mcc engine("8/8/1q1q1q2/2RRR3/1qRKRq2/2RRR3/1q1q1q2/8 w - - 0 1");
   std::cout << engine << "\n";
 
-  from = mcc::from_algebraic_to_64("e7");
-  to = mcc::from_algebraic_to_64("e4");
-  engine.make_move(from, to);
-
-  std::cout << engine << "\n";
-  
+  engine.generate_moves();
 }

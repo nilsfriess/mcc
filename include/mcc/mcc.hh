@@ -2,13 +2,16 @@
 
 #include "mcc/common.hh"
 #include "mcc/common/colour.hh"
+#include "mcc/common/direction.hh"
 #include "mcc/common/piece.hh"
 #include "mcc/move.hh"
 
+#include <bit>
 #include <exception>
 #include <optional>
 #include <sstream>
 #include <string>
+#include <unordered_map>
 #include <vector>
 
 /*
@@ -151,7 +154,36 @@ public:
     throw std::invalid_argument("[mcc::make_move] No piece at given positon.");
   }
 
+  // Generates all legal moves
+  std::vector<Move> generate_moves() const {
+    std::vector<Move> moves;
+
+    ////////////////////////////////////
+    // Step 1: Identify pinned pieces //
+    ////////////////////////////////////
+
+    /* This map holds the position of pinned pieces as the keys and the
+     * direction along which it is pinned (ie. along which it is allowed to
+     * move) as the value. */
+    std::unordered_map<unsigned int, Direction> pinned_positions;
+    for (auto direction : get_all_directions()) {
+      if (auto position = get_pinned_in_dir(direction))
+        pinned_positions.insert({position.value(), direction});
+    }
+
+    for (auto entry : pinned_positions)
+      std::cout << "Pinned piece at: " << from_64_to_algebraic(entry.first)
+                << "\n";
+
+    return moves;
+  }
+
 private:
+  uint64_t occupied_by(Colour colour) const {
+    return pawns[colour] | knights[colour] | bishops[colour] | queens[colour] |
+           rooks[colour] | king[colour];
+  }
+
   bool load_from_fen(const std::string &fen) {
     std::vector<std::string> fenFields;
     std::stringstream ss{fen};
@@ -298,6 +330,96 @@ private:
     }
 
     return true;
+  }
+
+  std::optional<unsigned int> get_pinned_in_dir(Direction dir) const {
+    using enum Direction;
+
+    const auto occ_by_own = pawns[active_colour] | rooks[active_colour] |
+                            knights[active_colour] | bishops[active_colour] |
+                            queens[active_colour];
+    const auto king_pos = std::countr_zero(king[active_colour]);
+
+    const int ray_dir = direction_to_ray_dir(dir);
+
+    // Compute ray starting from king position
+    uint64_t ray = 0;
+    {
+      int curr = king_pos + ray_dir;
+      while (true) {
+        set_bit(&ray, curr);
+        int next_curr = curr + ray_dir;
+
+        if (not is_inside_chessboard(curr) or distance(curr, next_curr) > 1)
+          break;
+        curr = next_curr;
+      }
+    }
+
+    if (auto pieces_on_ray = ray & occ_by_own) {
+      // There is at least one of our pieces on the ray, check if it is
+      // actually pinned
+      const auto other_colour = get_other_colour(active_colour);
+
+      uint64_t attackers = queens[other_colour];
+      if (dir == North || dir == South || dir == East || dir == West)
+        attackers |= rooks[other_colour];
+      else if (dir == NorthEast || dir == NorthWest || dir == SouthEast ||
+               dir == SouthWest)
+        attackers |= bishops[other_colour];
+
+      if (attackers & ray) {
+        // Get position of the first piece on the ray.
+        const auto piece_on_ray = 63 - std::countl_zero(pieces_on_ray);
+
+        // We already know that there is an attacker on the ray.
+        // We still have to check if one of our own pieces or a non-attacking
+        // piece blocks the pin.
+        bool blocked = false;
+
+        const auto occ_by_other = occupied_by(other_colour);
+        const auto non_attackers = occ_by_other & ~attackers;
+        const auto blockers = non_attackers | occ_by_own;
+
+        {
+          int curr = piece_on_ray + ray_dir;
+          while (not bit_is_set(attackers, curr)) { // follow ray until attacker
+            if (bit_is_set(blockers, curr)) {
+              std::cout << "1: Raydir = " << ray_dir << ", Piece at "
+                        << from_64_to_algebraic(piece_on_ray)
+                        << " is blocked by " << from_64_to_algebraic(curr)
+                        << "\n";
+              blocked = true;
+            }
+            curr += ray_dir;
+          }
+        }
+
+        /* Since `piece_on_ray` is not necessarily the piece closest to the
+           king, we also have to follow the ray in the other direction and check
+           for blockers. */
+        {
+          int curr = piece_on_ray - ray_dir;
+          // follow ray until we reach king
+          while (not bit_is_set(king[active_colour], curr)) {
+            if (bit_is_set(blockers, curr)) {
+              blocked = true;
+              std::cout << "2: Raydir = " << ray_dir << ", Piece at "
+                        << from_64_to_algebraic(piece_on_ray)
+                        << " is blocked by " << from_64_to_algebraic(curr)
+                        << "\n";
+            }
+            curr -= ray_dir;
+          }
+        }
+
+        if (not blocked) {
+          // We found a pinned piece, add it to the map
+          return piece_on_ray;
+        }
+      }
+    }
+    return {};
   }
 };
 
