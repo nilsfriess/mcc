@@ -340,7 +340,7 @@ private:
                             queens[active_colour];
     const auto king_pos = std::countr_zero(king[active_colour]);
 
-    const int ray_dir = direction_to_ray_dir(dir);
+    const int ray_dir = static_cast<int>(dir);
 
     // Compute ray starting from king position
     uint64_t ray = 0;
