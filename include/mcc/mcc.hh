@@ -7,6 +7,7 @@
 #include "mcc/move.hh"
 
 #include <bit>
+#include <bitset>
 #include <exception>
 #include <optional>
 #include <sstream>
@@ -171,9 +172,7 @@ public:
         pinned_positions.insert({position.value(), direction});
     }
 
-    for (auto entry : pinned_positions)
-      std::cout << "Pinned piece at: " << from_64_to_algebraic(entry.first)
-                << "\n";
+    generate_pawn_moves(moves, pinned_positions);
 
     return moves;
   }
@@ -384,13 +383,8 @@ private:
         {
           int curr = piece_on_ray + ray_dir;
           while (not bit_is_set(attackers, curr)) { // follow ray until attacker
-            if (bit_is_set(blockers, curr)) {
-              std::cout << "1: Raydir = " << ray_dir << ", Piece at "
-                        << from_64_to_algebraic(piece_on_ray)
-                        << " is blocked by " << from_64_to_algebraic(curr)
-                        << "\n";
+            if (bit_is_set(blockers, curr))
               blocked = true;
-            }
             curr += ray_dir;
           }
         }
@@ -402,13 +396,8 @@ private:
           int curr = piece_on_ray - ray_dir;
           // follow ray until we reach king
           while (not bit_is_set(king[active_colour], curr)) {
-            if (bit_is_set(blockers, curr)) {
+            if (bit_is_set(blockers, curr))
               blocked = true;
-              std::cout << "2: Raydir = " << ray_dir << ", Piece at "
-                        << from_64_to_algebraic(piece_on_ray)
-                        << " is blocked by " << from_64_to_algebraic(curr)
-                        << "\n";
-            }
             curr -= ray_dir;
           }
         }
@@ -420,6 +409,44 @@ private:
       }
     }
     return {};
+  }
+
+  void generate_pawn_moves(
+      std::vector<Move> &moves,
+      [[maybe_unused]] const std::unordered_map<unsigned int, Direction>
+          &pinned_positions) const {
+    const auto occ_by_own = occupied_by(active_colour);
+    const auto occ_by_other = occupied_by(get_other_colour(active_colour));
+    const auto occ = occ_by_own | occ_by_other;
+
+    const int direction = active_colour == Colour::White ? -1 : 1;
+
+    auto rem_pawns = this->pawns[active_colour];
+    
+    while (rem_pawns) {
+      const auto from = std::countr_zero(rem_pawns);
+
+      int to = from + direction * 8;
+      if (not bit_is_set(occ, to)) {
+        /* Check if moving to last rank (-> promotion). We check this by moving
+         * another step forward and see if we land outside the board. */
+        if (not is_inside_chessboard(to + direction * 8)) {
+          moves.push_back(Move{from, to, Piece::Pawn, active_colour,
+                               Move::Flags::PromotionBishop});
+          moves.push_back(Move{from, to, Piece::Pawn, active_colour,
+                               Move::Flags::PromotionKnight});
+          moves.push_back(Move{from, to, Piece::Pawn, active_colour,
+                               Move::Flags::PromotionRook});
+          moves.push_back(Move{from, to, Piece::Pawn, active_colour,
+                               Move::Flags::PromotionQueen});
+        } else {
+          moves.push_back(Move{from, to, Piece::Pawn, active_colour});
+        }
+      }
+
+      // We are done considering the current pawn, delete from temp bitboard
+      rem_pawns &= ~(1UL << static_cast<uint8_t>(from));
+    }
   }
 };
 
